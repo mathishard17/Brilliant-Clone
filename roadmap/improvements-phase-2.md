@@ -1,0 +1,3 @@
+-add a clicking thing to click through when explaining the ulitmate multiplcation shortcut
+-add a back button for every screen section, also add a page so that you start there when you start and then you click into the lesson and after you are done it brings you back to there (add some buttons for other lessons but the page just says lesson 2 or 3 to be updated )
+-after you click into the lesson you still want to go to page screen it was left off from

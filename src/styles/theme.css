@@ -1,0 +1,86 @@
+/* Kingdom theme — shared cards, headings, forms */
+
+.app-container {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    max-width: 768px;
+  }
+}
+
+.card {
+  background: white;
+  border-radius: var(--radius-soft);
+  box-shadow: var(--shadow-card);
+  border: 2px solid var(--color-border);
+}
+
+.heading-display {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--color-royal-purple);
+  line-height: 1.25;
+}
+
+.heading-display--sm {
+  font-size: 1.5rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-royal-purple) 0%, #9333ea 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-soft);
+  padding: 0.75rem 1.25rem;
+  min-height: 44px;
+  font-weight: 700;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 0 #5b21b6;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 #5b21b6;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #5b21b6;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--color-royal-purple);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-soft);
+  padding: 0.75rem 1.25rem;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.form-input {
+  font-size: 16px;
+  padding: 0.75rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-soft);
+  width: 100%;
+  background: #fffbff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-color: var(--color-royal-purple);
+}
+
+.form-input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
