@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { getItemLabel } from '../data/lesson1'
+import { getItemLabel } from '../lessons/lesson1/data'
 import { OutfitLogPair } from './OutfitLogEntry'
 
 interface AnchorOutfitsFoundProps {

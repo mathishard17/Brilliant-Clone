@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { getOutfitLogEmoji } from '../data/closetStyles'
-import { getItemLabel } from '../data/lesson1'
+import { getItemLabel } from '../lessons/lesson1/data'
 
 const GOLD_TIARA_OUTFITS = 3
 const DIAMOND_CROWN_OUTFITS = 3

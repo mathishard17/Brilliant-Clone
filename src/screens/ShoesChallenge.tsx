@@ -2,22 +2,16 @@ import { useCallback, useState } from 'react'
 import '../screens/screens.css'
 import { Closet, type ClosetCategory } from '../components/Closet'
 import { ChallengeQuestion } from '../components/ChallengeQuestion'
+import { DefaultInteractiveVisualization } from '../components/DefaultInteractiveVisualization'
 import { FeedbackBanner } from '../components/FeedbackBanner'
 import { LessonText } from '../components/LessonText'
 import { LessonButton } from '../components/LessonButton'
 import { ScreenBackButton } from '../components/ScreenBackButton'
 import { OutfitLog } from '../components/OutfitLog'
 import { PrincessCanvas } from '../components/PrincessCanvas'
-import {
-  firstTryAgainFeedback,
-  screen3Body,
-  screen3ChallengePrompt,
-  screen3FeedbackCorrect,
-  screen3FeedbackIncorrect,
-  screen3Heading,
-} from '../copy/lesson1'
+import { screen3InteractiveChallenge } from '../lessons/lesson1/copy'
 import { useLesson } from '../hooks/useLesson'
-import { CORRECT_ANSWERS, CROWNS, DRESSES, SHOES } from '../data/lesson1'
+import { CROWNS, DRESSES, SHOES } from '../lessons/lesson1/data'
 import { useOutfitTracker } from '../hooks/useOutfitTracker'
 import type { OutfitTriple } from '../types/lesson'
 
@@ -34,11 +28,12 @@ const CLOSET_CATEGORIES: ClosetCategory[] = [
 export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
   const { profile, recordOutfitTriple, updateLesson, updateScreen } = useLesson()
   const screen3 = profile.lesson.screen3
+  const content = screen3InteractiveChallenge
 
   const [answerInput, setAnswerInput] = useState(
     screen3.answer !== null ? String(screen3.answer) : '',
   )
-  const [wrongAttempts, setWrongAttempts] = useState(screen3.isCorrect === false ? 1 : 0)
+  const wrongAttempts = screen3.wrongAttempts
   const submitted = screen3.answer !== null
 
   const handleNewOutfit = useCallback(
@@ -63,37 +58,53 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
   }
 
   async function handleSubmit() {
+    const normalizedAnswer = answerInput.trim()
     const answer = Number(answerInput)
-    const isCorrect = answer === CORRECT_ANSWERS.screen3
-    if (!isCorrect) setWrongAttempts((n) => n + 1)
+    const isCorrect = answer === content.answer
+    const attemptedAnswers = screen3.attemptedAnswers.includes(normalizedAnswer)
+      ? screen3.attemptedAnswers
+      : [...screen3.attemptedAnswers, normalizedAnswer]
     await updateLesson({
-      screen3: { ...screen3, answer, isCorrect },
+      screen3: {
+        ...screen3,
+        answer,
+        isCorrect,
+        attemptedAnswers,
+        wrongAttempts: isCorrect ? screen3.wrongAttempts : screen3.wrongAttempts + 1,
+      },
     })
   }
 
   return (
     <section className="lesson-screen shoes-challenge">
       <ScreenBackButton label="← Back" onClick={() => void updateScreen(2)} />
-      <h1>{screen3Heading()}</h1>
-      <LessonText text={screen3Body(princessName)} />
+      <h1>{content.heading}</h1>
+      <LessonText text={content.body(princessName)} />
 
-      <div className="lesson-screen__play-area">
-        <Closet categories={CLOSET_CATEGORIES} selected={selected} onSelect={handleSelect} />
-        <PrincessCanvas crownId={crownId} dressId={dressId} shoeId={shoeId} />
-      </div>
+      {content.visualization === 'outfit-triples' ? (
+        <>
+          <div className="lesson-screen__play-area">
+            <Closet categories={CLOSET_CATEGORIES} selected={selected} onSelect={handleSelect} />
+            <PrincessCanvas crownId={crownId} dressId={dressId} shoeId={shoeId} />
+          </div>
 
-      <OutfitLog
-        outfits={screen3.discoveredOutfits}
-        total={screen3.discoveredOutfits.length}
-        mode="triple"
-        onReset={() => void handleReset()}
-      />
+          <OutfitLog
+            outfits={screen3.discoveredOutfits}
+            total={screen3.discoveredOutfits.length}
+            mode="triple"
+            onReset={() => void handleReset()}
+          />
+        </>
+      ) : (
+        <DefaultInteractiveVisualization />
+      )}
 
       <ChallengeQuestion
-        prompt={screen3ChallengePrompt()}
+        prompt={content.prompt}
         value={answerInput}
         onChange={setAnswerInput}
         onSubmit={handleSubmit}
+        attemptedAnswers={screen3.attemptedAnswers}
         submitted={submitted}
         allowRetry={submitted && screen3.isCorrect === false}
       />
@@ -103,15 +114,19 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
           variant={screen3.isCorrect ? 'success' : 'error'}
           message={
             screen3.isCorrect
-              ? screen3FeedbackCorrect(princessName)
+              ? content.feedback.correct(princessName)
               : wrongAttempts >= 2
-                ? screen3FeedbackIncorrect(princessName)
-                : firstTryAgainFeedback(princessName)
+                ? content.feedback.incorrect(princessName)
+                : content.feedback.tryAgain(princessName)
           }
         />
       )}
 
-      {submitted && (
+      {submitted && screen3.isCorrect === false && wrongAttempts >= 3 && (
+        <FeedbackBanner variant="info" message={content.feedback.solution(princessName)} />
+      )}
+
+      {submitted && screen3.isCorrect && (
         <LessonButton label="Continue" onClick={() => void updateScreen(4)} />
       )}
     </section>

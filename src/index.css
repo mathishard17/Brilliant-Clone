@@ -221,8 +221,20 @@ main {
   min-width: 0;
 }
 
-.lesson-progress {
+.lesson-chrome {
   margin-bottom: 1rem;
+}
+
+.lesson-chrome__title {
+  margin: 0 0 0.4rem;
+  text-align: center;
+  color: var(--color-royal-purple);
+  font-size: 0.9375rem;
+  font-weight: 800;
+}
+
+.lesson-progress {
+  margin-bottom: 0;
 }
 
 .lesson-progress__label {

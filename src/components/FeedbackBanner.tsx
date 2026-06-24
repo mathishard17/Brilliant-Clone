@@ -1,4 +1,4 @@
-import { renderLessonText } from './LessonText'
+import { renderLessonText } from '../utils/renderLessonText'
 
 interface FeedbackBannerProps {
   message: string

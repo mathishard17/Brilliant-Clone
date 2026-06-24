@@ -1,10 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import {
-  screen0BodyLogin,
-  screen0BodySignup,
-  screen0Heading,
-} from '../copy/lesson1'
+import { loginBodyLogin, loginBodySignup, loginHeading } from '../copy/login'
 import { normalizeUsername } from '../utils/outfitKeys'
 
 const USERNAME_PATTERN = /^[a-z0-9_]+$/
@@ -79,8 +75,8 @@ export function PrincessRegistry() {
 
   return (
     <section className="screen-placeholder registry card">
-      <h1 className="heading-display">{screen0Heading()}</h1>
-      <p>{mode === 'login' ? screen0BodyLogin() : screen0BodySignup()}</p>
+      <h1 className="heading-display">{loginHeading()}</h1>
+      <p>{mode === 'login' ? loginBodyLogin() : loginBodySignup()}</p>
 
       <div className="registry__tabs">
         <button

@@ -2,8 +2,10 @@ import { useState } from 'react'
 import '../screens/screens.css'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useLesson } from '../hooks/useLesson'
-import { resetLesson1Progress } from '../utils/lessonProgress'
-import { getResumeScreen } from '../utils/lessonResume'
+import { LESSON_DEFINITIONS, type LessonDefinition } from '../lessons/registry'
+
+const LESSONS_PER_PAGE = 5
+const HOME_HUB_PAGE_KEY = 'royal-academy-home-page'
 
 interface HomeHubProps {
   princessName: string
@@ -11,19 +13,41 @@ interface HomeHubProps {
 
 export function HomeHub({ princessName }: HomeHubProps) {
   const { profile, updateLesson, updateScreen } = useLesson()
-  const lessonCompleted = profile.lesson.completed
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const [resetLesson, setResetLesson] = useState<LessonDefinition | null>(null)
+  const pageCount = Math.ceil(LESSON_DEFINITIONS.length / LESSONS_PER_PAGE)
+  const [page, setPage] = useState(() => {
+    const savedPage = Number(window.sessionStorage.getItem(HOME_HUB_PAGE_KEY) ?? 0)
+    if (!Number.isFinite(savedPage)) return 0
+    return Math.min(Math.max(savedPage, 0), Math.max(pageCount - 1, 0))
+  })
+  const pageStart = page * LESSONS_PER_PAGE
+  const visibleLessons = LESSON_DEFINITIONS.slice(pageStart, pageStart + LESSONS_PER_PAGE)
 
-  function enterLesson1() {
-    void updateScreen(getResumeScreen(profile.lesson))
+  function updatePage(nextPage: number) {
+    const safePage = Math.min(Math.max(nextPage, 0), Math.max(pageCount - 1, 0))
+    window.sessionStorage.setItem(HOME_HUB_PAGE_KEY, String(safePage))
+    setPage(safePage)
   }
 
-  async function handleConfirmResetLesson1() {
-    setResetConfirmOpen(false)
-    await updateLesson(resetLesson1Progress())
+  function getLessonProgress(lesson: LessonDefinition) {
+    return profile.lessons[lesson.id] ?? lesson.createDefaultProgress()
   }
 
-  const lessonLabel = lessonCompleted ? 'Review Lesson 1' : 'Lesson 1: Princess Outfits'
+  function enterLesson(lesson: LessonDefinition) {
+    const progress = getLessonProgress(lesson)
+    void updateScreen(lesson.getResumeScreen(progress), lesson.id)
+  }
+
+  async function handleConfirmResetLesson() {
+    if (!resetLesson) return
+    const lesson = resetLesson
+    setResetLesson(null)
+    await updateLesson(lesson.resetProgress(), lesson.id)
+  }
+
+  const resetMessage = resetLesson
+    ? `Reset all progress for ${resetLesson.title}? This clears saved answers and lesson steps.`
+    : ''
 
   return (
     <section className="lesson-screen home-hub">
@@ -33,57 +57,70 @@ export function HomeHub({ princessName }: HomeHubProps) {
       </p>
 
       <div className="home-hub__lessons">
-        <article className="home-hub__lesson-entry">
-          <button
-            type="button"
-            className="home-hub__lesson-card home-hub__lesson-card--active"
-            onClick={enterLesson1}
-          >
-            <span className="home-hub__lesson-emoji">👑</span>
-            <span className="home-hub__lesson-title">{lessonLabel}</span>
-            <span className="home-hub__lesson-desc">Count combinations with crowns, gowns, &amp; shoes</span>
-            {lessonCompleted && (
-              <span className="home-hub__lesson-badge">✓ Completed</span>
-            )}
-          </button>
-          <button
-            type="button"
-            className="home-hub__reset-btn"
-            onClick={() => setResetConfirmOpen(true)}
-          >
-            Reset Lesson 1 progress
-          </button>
-        </article>
+        {visibleLessons.map((lesson) => {
+          const progress = getLessonProgress(lesson)
+          const lessonLabel = progress.completed ? `Review ${lesson.title}` : lesson.title
+          const available = lesson.available ?? true
 
-        <article className="home-hub__lesson-entry">
-          <div className="home-hub__lesson-card home-hub__lesson-card--disabled">
-            <span className="home-hub__lesson-emoji">🔮</span>
-            <span className="home-hub__lesson-title">Lesson 2</span>
-            <span className="home-hub__lesson-desc">To be updated</span>
-          </div>
-          <button type="button" className="home-hub__reset-btn" disabled>
-            Reset Lesson 2 progress
-          </button>
-        </article>
-
-        <article className="home-hub__lesson-entry">
-          <div className="home-hub__lesson-card home-hub__lesson-card--disabled">
-            <span className="home-hub__lesson-emoji">🌟</span>
-            <span className="home-hub__lesson-title">Lesson 3</span>
-            <span className="home-hub__lesson-desc">To be updated</span>
-          </div>
-          <button type="button" className="home-hub__reset-btn" disabled>
-            Reset Lesson 3 progress
-          </button>
-        </article>
+          return (
+            <article className="home-hub__lesson-entry" key={lesson.id}>
+              <button
+                type="button"
+                className={`home-hub__lesson-card ${available ? 'home-hub__lesson-card--active' : 'home-hub__lesson-card--disabled'}`}
+                onClick={() => enterLesson(lesson)}
+                disabled={!available}
+              >
+                <span className="home-hub__lesson-emoji">{lesson.emoji}</span>
+                <span className="home-hub__lesson-title">{lessonLabel}</span>
+                <span className="home-hub__lesson-desc">{lesson.description}</span>
+                {progress.completed && (
+                  <span className="home-hub__lesson-badge">✓ Completed</span>
+                )}
+              </button>
+              {available && (
+                <button
+                  type="button"
+                  className="home-hub__reset-btn"
+                  onClick={() => setResetLesson(lesson)}
+                >
+                  Reset progress
+                </button>
+              )}
+            </article>
+          )
+        })}
       </div>
 
+      {pageCount > 1 && (
+        <nav className="home-hub__pagination" aria-label="Lesson pages">
+          <button
+            type="button"
+            className="home-hub__page-btn"
+            onClick={() => updatePage(page - 1)}
+            disabled={page === 0}
+          >
+            ← Previous
+          </button>
+          <span>
+            Page {page + 1} of {pageCount}
+          </span>
+          <button
+            type="button"
+            className="home-hub__page-btn"
+            onClick={() => updatePage(page + 1)}
+            disabled={page === pageCount - 1}
+          >
+            Next →
+          </button>
+        </nav>
+      )}
+
       <ConfirmDialog
-        open={resetConfirmOpen}
+        open={resetLesson !== null}
         title="Are you sure?"
-        message="Reset all progress for Lesson 1? This clears your outfits, answers, and lesson steps."
-        onConfirm={() => void handleConfirmResetLesson1()}
-        onCancel={() => setResetConfirmOpen(false)}
+        message={resetMessage}
+        onConfirm={() => void handleConfirmResetLesson()}
+        onCancel={() => setResetLesson(null)}
       />
     </section>
   )

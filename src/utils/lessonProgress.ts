@@ -1,4 +1,5 @@
 import {
+  DEFAULT_LESSON_ID,
   createDefaultLessonProgress,
   type LessonProgress,
   type OutfitPair,
@@ -8,13 +9,15 @@ import {
 /** Merge Firestore data with defaults so older/missing fields never break reads. */
 export function normalizeLessonProgress(
   lesson: Partial<LessonProgress> | undefined,
+  lessonId = lesson?.lessonId ?? DEFAULT_LESSON_ID,
 ): LessonProgress {
-  const defaults = createDefaultLessonProgress()
+  const defaults = createDefaultLessonProgress(lessonId)
   if (!lesson) return defaults
 
   return {
     ...defaults,
     ...lesson,
+    sectionState: lesson.sectionState ?? defaults.sectionState,
     screen1: {
       ...defaults.screen1,
       ...lesson.screen1,
@@ -32,6 +35,30 @@ export function normalizeLessonProgress(
   }
 }
 
+export function normalizeLessonMap(
+  lessons: Record<string, Partial<LessonProgress>> | undefined,
+  legacyLesson?: Partial<LessonProgress>,
+): Record<string, LessonProgress> {
+  const normalized: Record<string, LessonProgress> = {}
+
+  if (lessons) {
+    for (const [lessonId, lesson] of Object.entries(lessons)) {
+      normalized[lessonId] = normalizeLessonProgress(lesson, lessonId)
+    }
+  }
+
+  if (legacyLesson) {
+    const normalizedLegacy = normalizeLessonProgress(legacyLesson)
+    normalized[normalizedLegacy.lessonId] = normalized[normalizedLegacy.lessonId] ?? normalizedLegacy
+  }
+
+  if (!normalized[DEFAULT_LESSON_ID]) {
+    normalized[DEFAULT_LESSON_ID] = createDefaultLessonProgress(DEFAULT_LESSON_ID)
+  }
+
+  return normalized
+}
+
 /** Deep-merge a lesson update onto the latest saved lesson state. */
 export function mergeLessonProgress(
   current: LessonProgress,
@@ -40,6 +67,12 @@ export function mergeLessonProgress(
   return normalizeLessonProgress({
     ...current,
     ...partial,
+    sectionState:
+      partial.sectionState !== undefined
+        ? Object.keys(partial.sectionState).length === 0
+          ? {}
+          : { ...current.sectionState, ...partial.sectionState }
+        : current.sectionState,
     screen1: partial.screen1 ? { ...current.screen1, ...partial.screen1 } : current.screen1,
     screen2: partial.screen2 ? { ...current.screen2, ...partial.screen2 } : current.screen2,
     screen3: partial.screen3 ? { ...current.screen3, ...partial.screen3 } : current.screen3,
@@ -82,14 +115,21 @@ export function appendOutfitTriple(
 }
 
 /** Reset Lesson 1 (Princess Outfits) to a fresh state while staying on the hub. */
-export function resetLesson1Progress(): Partial<LessonProgress> {
-  const defaults = createDefaultLessonProgress()
+export function resetLessonProgress(lessonId = DEFAULT_LESSON_ID): Partial<LessonProgress> {
+  const defaults = createDefaultLessonProgress(lessonId)
   return {
+    lessonId,
     completed: false,
     currentScreen: 0,
     lastLessonScreen: 1,
+    sectionState: {},
     screen1: defaults.screen1,
     screen2: defaults.screen2,
     screen3: defaults.screen3,
   }
+}
+
+/** Reset Lesson 1 (Princess Outfits) to a fresh state while staying on the hub. */
+export function resetLesson1Progress(): Partial<LessonProgress> {
+  return resetLessonProgress(DEFAULT_LESSON_ID)
 }

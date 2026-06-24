@@ -21,16 +21,6 @@ export const SHOES: ClosetItem[] = [
   { id: 'riding-boots', label: 'Riding Boots' },
 ]
 
-export const CORRECT_ANSWERS = {
-  screen1: 6,
-  screen3: 12,
-} as const
-
-export const MAX_UNIQUE_OUTFITS = {
-  screen1: 6,
-  screen3: 12,
-} as const
-
 const CATALOG: Record<ClosetCategory, ClosetItem[]> = {
   crowns: CROWNS,
   dresses: DRESSES,

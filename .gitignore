@@ -6,19 +6,37 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.npm
+.yarn
+.pnpm-store
 
 node_modules
 dist
 dist-ssr
+coverage
+.vite
+*.tsbuildinfo
 *.local
 .env
+.env.*
+!.env.example
 .firebase
+
+# Agent/plugin caches and local transcripts
+.cursor/
+agent-transcripts/
+mcps/
+
+# Keep project-authored agent skills, but ignore installed vendor skill packs.
+.agents/skills/firebase-*
+.agents/skills/xcode-project-setup/
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj

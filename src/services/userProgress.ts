@@ -7,9 +7,13 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { createDefaultLessonProgress, type LessonProgress } from '../types/lesson'
+import {
+  DEFAULT_LESSON_ID,
+  createDefaultLessonProgress,
+  type LessonProgress,
+} from '../types/lesson'
 import type { ScreenNumber, UserProfile, UsernameRecord } from '../types/user'
-import { normalizeLessonProgress } from '../utils/lessonProgress'
+import { normalizeLessonMap, normalizeLessonProgress } from '../utils/lessonProgress'
 import { normalizeUsername } from '../utils/outfitKeys'
 
 function usersRef(uid: string) {
@@ -38,11 +42,15 @@ export async function createUserProfile(
     createdAt: ReturnType<typeof serverTimestamp>
     updatedAt: ReturnType<typeof serverTimestamp>
   } = {
+    activeLessonId: DEFAULT_LESSON_ID,
     username: normalized,
     princessName: princessName.trim(),
     createdAt: now,
     updatedAt: now,
-    lesson: createDefaultLessonProgress(),
+    lesson: createDefaultLessonProgress(DEFAULT_LESSON_ID),
+    lessons: {
+      [DEFAULT_LESSON_ID]: createDefaultLessonProgress(DEFAULT_LESSON_ID),
+    },
   }
 
   const usernameRecord: Omit<UsernameRecord, 'createdAt'> & {
@@ -58,12 +66,22 @@ export async function createUserProfile(
 }
 
 function parseUserProfile(data: Record<string, unknown>): UserProfile {
-  const lesson = normalizeLessonProgress(data.lesson as Partial<LessonProgress> | undefined)
+  const legacyLesson = data.lesson as Partial<LessonProgress> | undefined
+  const lessons = normalizeLessonMap(
+    data.lessons as Record<string, Partial<LessonProgress>> | undefined,
+    legacyLesson,
+  )
+  const activeLessonId = String(data.activeLessonId ?? DEFAULT_LESSON_ID)
+  const lesson = lessons[activeLessonId] ?? createDefaultLessonProgress(activeLessonId)
+  lessons[activeLessonId] = lesson
+
   return {
+    activeLessonId,
     username: String(data.username ?? ''),
     princessName: String(data.princessName ?? ''),
     createdAt: data.createdAt as UserProfile['createdAt'],
     updatedAt: data.updatedAt as UserProfile['updatedAt'],
+    lessons,
     lesson,
   }
 }
@@ -100,9 +118,16 @@ export async function updateUserProfile(
 }
 
 /** Persist the full lesson object to avoid partial overwrites wiping nested fields. */
-export async function saveLessonProgress(uid: string, lesson: LessonProgress): Promise<void> {
+export async function saveLessonProgress(
+  uid: string,
+  lesson: LessonProgress,
+  lessonId = lesson.lessonId || DEFAULT_LESSON_ID,
+): Promise<void> {
+  const normalized = normalizeLessonProgress(lesson, lessonId)
   await updateDoc(usersRef(uid), {
-    lesson: normalizeLessonProgress(lesson),
+    activeLessonId: lessonId,
+    lesson: normalized,
+    [`lessons.${lessonId}`]: normalized,
     updatedAt: serverTimestamp(),
   })
 }
@@ -111,6 +136,7 @@ export async function updateLessonProgress(
   uid: string,
   lesson: Partial<LessonProgress>,
   currentLesson: LessonProgress,
+  lessonId = currentLesson.lessonId || DEFAULT_LESSON_ID,
 ): Promise<void> {
   const merged = normalizeLessonProgress({
     ...currentLesson,
@@ -118,21 +144,22 @@ export async function updateLessonProgress(
     screen1: lesson.screen1 ? { ...currentLesson.screen1, ...lesson.screen1 } : currentLesson.screen1,
     screen2: lesson.screen2 ? { ...currentLesson.screen2, ...lesson.screen2 } : currentLesson.screen2,
     screen3: lesson.screen3 ? { ...currentLesson.screen3, ...lesson.screen3 } : currentLesson.screen3,
-  })
-  await saveLessonProgress(uid, merged)
+  }, lessonId)
+  await saveLessonProgress(uid, merged, lessonId)
 }
 
 export async function updateCurrentScreen(
   uid: string,
   screen: ScreenNumber,
   currentLesson: LessonProgress,
+  lessonId = currentLesson.lessonId || DEFAULT_LESSON_ID,
 ): Promise<void> {
   const lesson = normalizeLessonProgress({
     ...currentLesson,
     currentScreen: screen,
-    ...(screen >= 1 && screen <= 4 ? { lastLessonScreen: screen } : {}),
-  })
-  await saveLessonProgress(uid, lesson)
+    ...(screen >= 1 ? { lastLessonScreen: screen } : {}),
+  }, lessonId)
+  await saveLessonProgress(uid, lesson, lessonId)
 }
 
 /** After login: normalize fields and land on hub while keeping resume screen. */
@@ -141,7 +168,7 @@ export async function hydrateProfileAfterLogin(
   profile: UserProfile,
 ): Promise<UserProfile> {
   let lesson = normalizeLessonProgress(profile.lesson)
-  const wasInLesson = lesson.currentScreen >= 1 && lesson.currentScreen <= 4
+  const wasInLesson = lesson.currentScreen >= 1
 
   if (wasInLesson) {
     lesson = {

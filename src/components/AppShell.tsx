@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useUserProgress } from '../hooks/useUserProgress'
 import { LessonProvider } from '../context/LessonContext'
 import type { ScreenNumber, UserProfile } from '../types/user'
+import { getLessonDefinition } from '../lessons/registry'
 import { showDevNav } from '../utils/devMode'
 import { LoadingSpinner } from './LoadingSpinner'
 import { LessonProgressBar } from './LessonProgressBar'
@@ -12,20 +13,6 @@ import { PrincessRegistry } from '../screens/PrincessRegistry'
 const HomeHub = lazy(() =>
   import('../screens/HomeHub').then((m) => ({ default: m.HomeHub })),
 )
-const DressingRoom = lazy(() =>
-  import('../screens/DressingRoom').then((m) => ({ default: m.DressingRoom })),
-)
-const AnchorTrickLesson = lazy(() =>
-  import('../screens/AnchorTrickLesson').then((m) => ({ default: m.AnchorTrickLesson })),
-)
-const ShoesChallenge = lazy(() =>
-  import('../screens/ShoesChallenge').then((m) => ({ default: m.ShoesChallenge })),
-)
-const LessonSummary = lazy(() =>
-  import('../screens/LessonSummary').then((m) => ({ default: m.LessonSummary })),
-)
-
-const SCREENS: ScreenNumber[] = [0, 1, 2, 3, 4]
 
 interface AuthenticatedAppProps {
   user: User
@@ -52,22 +39,19 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
 
   const screen = localProfile.lesson.currentScreen as ScreenNumber
   const princessName = localProfile.princessName
+  const lessonDefinition = getLessonDefinition(localProfile.activeLessonId)
+  const lessonScreens: ScreenNumber[] = Array.from(
+    { length: lessonDefinition.progressSteps.length },
+    (_, i) => i + 1,
+  )
+  const devScreens: ScreenNumber[] = [0, ...lessonScreens]
 
   function renderScreen() {
-    switch (screen) {
-      case 0:
-        return <HomeHub princessName={princessName} />
-      case 1:
-        return <DressingRoom princessName={princessName} />
-      case 2:
-        return <AnchorTrickLesson princessName={princessName} />
-      case 3:
-        return <ShoesChallenge princessName={princessName} />
-      case 4:
-        return <LessonSummary princessName={princessName} />
-      default:
-        return <HomeHub princessName={princessName} />
+    if (screen === 0) {
+      return <HomeHub princessName={princessName} />
     }
+    const LessonScreen = lessonDefinition.screens[screen]
+    return LessonScreen ? <LessonScreen princessName={princessName} /> : <HomeHub princessName={princessName} />
   }
 
   return (
@@ -107,8 +91,17 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
         </div>
       )}
 
-      {screen >= 1 && screen <= 4 && (
-        <LessonProgressBar step={screen} completed={localProfile.lesson.completed} />
+      {lessonScreens.includes(screen) && (
+        <div className="lesson-chrome">
+          <p className="lesson-chrome__title">
+            <span aria-hidden="true">{lessonDefinition.emoji}</span> {lessonDefinition.title}
+          </p>
+          <LessonProgressBar
+            step={screen}
+            completed={localProfile.lesson.completed}
+            steps={lessonDefinition.progressSteps}
+          />
+        </div>
       )}
 
       <main>
@@ -121,14 +114,14 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
         <footer className="dev-nav">
           <p>Dev: jump to screen</p>
           <div className="dev-nav__buttons">
-            {SCREENS.map((s) => (
+            {devScreens.map((s) => (
               <button
                 key={s}
                 type="button"
                 className={screen === s ? 'active' : ''}
                 onClick={() => void updateScreen(s)}
               >
-                {s === 0 ? 'Hub' : `Screen ${s}`}
+                {s === 0 ? 'Hub' : `Section ${s}`}
               </button>
             ))}
           </div>

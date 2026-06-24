@@ -4,8 +4,8 @@ import type { ScreenNumber, UserProfile } from '../types/user'
 
 export interface LessonContextValue {
   profile: UserProfile
-  updateScreen: (screen: ScreenNumber) => Promise<void>
-  updateLesson: (partial: Partial<LessonProgress>) => Promise<void>
+  updateScreen: (screen: ScreenNumber, lessonId?: string) => Promise<void>
+  updateLesson: (partial: Partial<LessonProgress>, lessonId?: string) => Promise<void>
   recordOutfitPair: (outfit: OutfitPair) => void
   recordOutfitTriple: (outfit: OutfitTriple) => void
   saving: boolean

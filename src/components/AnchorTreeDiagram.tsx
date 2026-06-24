@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { ColoredHeart } from './ColoredHeart'
 import { AnchorOutfitsFound } from './AnchorOutfitsFound'
 import { getClosetItemStyle, getDressHeartColor, getOutfitLogEmoji } from '../data/closetStyles'
-import { getItemLabel } from '../data/lesson1'
+import { getItemLabel } from '../lessons/lesson1/data'
 
 export type AnchorTree =
   | {
