@@ -1,8 +1,9 @@
 import { normalizeUsername } from './outfitKeys'
 
-export const DEV_USERNAME = 'sophia'
+const DEV_USERNAME = normalizeUsername(import.meta.env.VITE_DEV_USERNAME ?? '')
 
 export function isDevUser(username: string): boolean {
+  if (!DEV_USERNAME) return false
   return normalizeUsername(username) === DEV_USERNAME
 }
 

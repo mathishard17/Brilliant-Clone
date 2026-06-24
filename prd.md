@@ -271,7 +271,8 @@ The frontend acts as an interactive dress-up canvas, managing login sessions, re
 | Component | Specification |
 |-----------|---------------|
 | **Scaffolding & Build Tool** | Vite scaffolds the React single-page architecture and compiles optimized client asset bundles. |
-| **Component Styling & Mobile Responsiveness** | Standard CSS and inline styles handle all visual layout. The interface is engineered for mobile using adaptive flex containers (`display: flex`, `flexDirection: column`) and media queries — closet and princess canvas stack vertically on phones, side-by-side on tablets/desktops. |
+| **Component Styling & Cross-Device Responsiveness** | Standard CSS handles all visual layout with a mobile-first, fluid approach validated on **phones, iPads/tablets, and desktops**. Adaptive flex containers and media-query breakpoints (480 → 768 → 1024px) reflow the layout: the closet and princess canvas stack vertically on phones and sit side-by-side from tablet width up, with the centered content column widening on larger screens. Layout uses `svh` units so it fits correctly inside mobile browser chrome. |
+| **iPad & Touch Optimization** | Because the target learner most often uses an iPad, the UI is tuned for touch: all tappable controls meet the 44px minimum target, `touch-action: manipulation` removes the double-tap zoom delay, tap highlights and accidental text selection are suppressed for tap-and-hold, form inputs use ≥16px text to prevent iOS focus-zoom, and `viewport-fit=cover` + `env(safe-area-inset-*)` padding keep content clear of notches, home indicators, and rounded corners on modern iPhones/iPads. |
 | **Asset Alignment Layout** | Absolute CSS positioning (`position: absolute`) layers wardrobe pieces (Crowns, Dresses, Shoes) onto the princess silhouette using percentages for flawless alignment on any screen size. |
 | **State Management Engine** | Native React state (`useState`) plus custom initialization hooks handle credentials, the dynamic profile moniker, and multi-screen lesson progression. |
 | **Combination Tracking Logic** | React's `useEffect` listens to garment changes in real time, compares current choices against an internal tracking array, and updates the unique looks log dynamically. |
@@ -489,5 +490,5 @@ To pass, you need:
 - [ ] **Instant, specific feedback** on each answer, right or wrong, with a short explanation — written by you, not generated
 - [ ] **Progress that persists:** finish part of a lesson, come back, pick up where you left off
 - [ ] **Accounts and names** (auth)
-- [ ] **Works on mobile** screen sizes
+- [ ] **Works across devices** — phones, iPads/tablets, and desktops (touch-optimized for the iPad-first learner, with safe-area support on modern iPhones/iPads)
 - [ ] **Deployed and public**

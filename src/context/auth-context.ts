@@ -8,6 +8,7 @@ export interface AuthContextValue {
   loading: boolean
   authenticating: boolean
   error: string | null
+  profileError: string | null
   sessionMessage: string | null
   signUp: (username: string, password: string, princessName: string) => Promise<void>
   signIn: (username: string, password: string) => Promise<void>

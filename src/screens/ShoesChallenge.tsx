@@ -9,6 +9,7 @@ import { ScreenBackButton } from '../components/ScreenBackButton'
 import { OutfitLog } from '../components/OutfitLog'
 import { PrincessCanvas } from '../components/PrincessCanvas'
 import {
+  firstTryAgainFeedback,
   screen3Body,
   screen3ChallengePrompt,
   screen3FeedbackCorrect,
@@ -37,6 +38,7 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
   const [answerInput, setAnswerInput] = useState(
     screen3.answer !== null ? String(screen3.answer) : '',
   )
+  const [wrongAttempts, setWrongAttempts] = useState(screen3.isCorrect === false ? 1 : 0)
   const submitted = screen3.answer !== null
 
   const handleNewOutfit = useCallback(
@@ -63,6 +65,7 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
   async function handleSubmit() {
     const answer = Number(answerInput)
     const isCorrect = answer === CORRECT_ANSWERS.screen3
+    if (!isCorrect) setWrongAttempts((n) => n + 1)
     await updateLesson({
       screen3: { ...screen3, answer, isCorrect },
     })
@@ -101,7 +104,9 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
           message={
             screen3.isCorrect
               ? screen3FeedbackCorrect(princessName)
-              : screen3FeedbackIncorrect(princessName)
+              : wrongAttempts >= 2
+                ? screen3FeedbackIncorrect(princessName)
+                : firstTryAgainFeedback(princessName)
           }
         />
       )}

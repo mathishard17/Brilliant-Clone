@@ -111,7 +111,7 @@ export function PrincessRegistry() {
 
       <form className="registry__form" onSubmit={handleSubmit} noValidate>
         <label>
-          Choose a Username
+          Username
           <input
             type="text"
             className="form-input"
@@ -127,7 +127,7 @@ export function PrincessRegistry() {
         </label>
 
         <label>
-          Choose a Password
+          Password
           <input
             type="password"
             className="form-input"

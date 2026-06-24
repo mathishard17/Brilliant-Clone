@@ -3,6 +3,12 @@ import type { ScreenNumber } from '../types/user'
 
 /** Pick the lesson screen to resume (1–4), separate from hub screen 0. */
 export function getResumeScreen(lesson: LessonProgress): ScreenNumber {
+  // A finished lesson always reopens on the summary ("Review") rather than
+  // wherever the student last browsed.
+  if (lesson.completed) {
+    return 4
+  }
+
   if (
     lesson.lastLessonScreen !== undefined &&
     lesson.lastLessonScreen >= 1 &&

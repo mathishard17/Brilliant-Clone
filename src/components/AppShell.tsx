@@ -6,6 +6,7 @@ import { LessonProvider } from '../context/LessonContext'
 import type { ScreenNumber, UserProfile } from '../types/user'
 import { showDevNav } from '../utils/devMode'
 import { LoadingSpinner } from './LoadingSpinner'
+import { LessonProgressBar } from './LessonProgressBar'
 import { PrincessRegistry } from '../screens/PrincessRegistry'
 
 const HomeHub = lazy(() =>
@@ -84,13 +85,13 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
     >
       <header className="app-header">
         <span className="app-header__name">{princessName}</span>
+        {saving && <span className="app-header__saving">Saving…</span>}
         <div className="app-header__actions">
           {screen !== 0 && (
             <button type="button" className="app-header__home-btn" onClick={() => void updateScreen(0)}>
               Home
             </button>
           )}
-          {saving && <span className="app-header__saving">Saving…</span>}
           <button type="button" onClick={() => signOut()}>
             Sign Out
           </button>
@@ -106,6 +107,10 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
         </div>
       )}
 
+      {screen >= 1 && screen <= 4 && (
+        <LessonProgressBar step={screen} completed={localProfile.lesson.completed} />
+      )}
+
       <main>
         <Suspense fallback={<LoadingSpinner label="Opening lesson…" />}>
           {renderScreen()}
@@ -114,7 +119,7 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
 
       {showDevNav(localProfile.username) && (
         <footer className="dev-nav">
-          <p>Dev: jump to screen (sophia only)</p>
+          <p>Dev: jump to screen</p>
           <div className="dev-nav__buttons">
             {SCREENS.map((s) => (
               <button
@@ -133,8 +138,32 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
   )
 }
 
+interface ProfileLoadErrorProps {
+  message: string | null
+  onRetry: () => void
+  onSignOut: () => void
+}
+
+function ProfileLoadError({ message, onRetry, onSignOut }: ProfileLoadErrorProps) {
+  return (
+    <section className="screen-placeholder card" role="alert">
+      <h1 className="heading-display">Oops!</h1>
+      <p>{message ?? "We couldn't load your progress. Please try again."}</p>
+      <div className="app-header__actions">
+        <button type="button" className="btn-primary" onClick={onRetry}>
+          Try Again
+        </button>
+        <button type="button" onClick={onSignOut}>
+          Sign Out
+        </button>
+      </div>
+    </section>
+  )
+}
+
 export function AppShell() {
-  const { user, profile, loading, sessionMessage } = useAuth()
+  const { user, profile, loading, sessionMessage, profileError, refreshProfile, signOut } =
+    useAuth()
 
   if (loading) {
     return <LoadingSpinner />
@@ -149,6 +178,12 @@ export function AppShell() {
       )}
       {user && profile ? (
         <AuthenticatedApp key={user.uid} user={user} profile={profile} />
+      ) : user ? (
+        <ProfileLoadError
+          message={profileError}
+          onRetry={() => void refreshProfile()}
+          onSignOut={() => void signOut()}
+        />
       ) : (
         <PrincessRegistry />
       )}

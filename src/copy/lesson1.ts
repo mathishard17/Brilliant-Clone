@@ -30,6 +30,11 @@ export function screen1FeedbackIncorrect(princessName: string) {
   return `Not quite, ${princessName}! Let's jump into a **secret palace trick** to see how to easily count them all without losing track.`
 }
 
+/** Gentle nudge shown on the first wrong answer, before the detailed hint. */
+export function firstTryAgainFeedback(princessName: string) {
+  return `Hmm... that's not it, ${princessName}, try again!`
+}
+
 import type { AnchorTree } from '../components/AnchorTreeDiagram'
 
 export interface Screen2Step {
@@ -91,7 +96,7 @@ export function screen3FeedbackCorrect(princessName: string) {
 }
 
 export function screen3FeedbackIncorrect(princessName: string) {
-  return `Close! Think about it, ${princessName}: Every one of your original **6 outfits** now gets **2 options of shoes** (Glass Slippers or Riding Boots). That **doubles** your total count! Try entering 12.`
+  return `Close! Think about it, ${princessName}: Every one of your original **6 outfits** now gets **2 options of shoes** (Glass Slippers or Riding Boots).`
 }
 
 export function screen4Heading() {
@@ -141,6 +146,28 @@ export function screen4Equation() {
   return '2 Crowns × 3 Dresses × 2 Shoes = 12 Total Outfits'
 }
 
+export const SCREEN4_PRACTICE_ANSWER = 40
+
+export function screen4PracticeHeading() {
+  return '🧮 Your Turn to Shine!'
+}
+
+export function screen4PracticePrompt() {
+  return 'Now you try — no closet needed! A princess has **4 crowns**, **5 gowns**, and **2 pairs of shoes**. Use the shortcut: how many unique outfits can she make?'
+}
+
+export function screen4PracticeEquation() {
+  return '4 Crowns × 5 Gowns × 2 Shoes = 40 Total Outfits'
+}
+
+export function screen4PracticeCorrect(princessName: string) {
+  return `You're a multiplication master, ${princessName}! **4 × 5 × 2 = 40** unique outfits — no counting one-by-one needed!`
+}
+
+export function screen4PracticeIncorrect(princessName: string) {
+  return `Not quite, ${princessName}! Remember the shortcut: **multiply** the choices in each category.`
+}
+
 export function screen4Closing(princessName: string) {
-  return `**Multiplying** your options is the ultimate mathematical superpower shortcut for counting **choices**. You've completed Lesson 1, ${princessName}!`
+  return `**Multiplying your options** is the ultimate mathematical superpower shortcut for **counting choices**. You've completed Lesson 1, ${princessName}!`
 }

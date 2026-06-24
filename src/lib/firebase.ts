@@ -11,6 +11,17 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key)
+
+if (missingKeys.length > 0) {
+  throw new Error(
+    `Missing Firebase config (${missingKeys.join(', ')}). ` +
+      'Copy .env.example to .env and fill in your VITE_FIREBASE_* values.',
+  )
+}
+
 const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)

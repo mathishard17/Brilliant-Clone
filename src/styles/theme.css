@@ -12,6 +12,12 @@
   }
 }
 
+@media (min-width: 1024px) {
+  .app-container {
+    max-width: 840px;
+  }
+}
+
 .card {
   background: white;
   border-radius: var(--radius-soft);

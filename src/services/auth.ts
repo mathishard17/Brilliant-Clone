@@ -12,7 +12,7 @@ import { auth } from '../lib/firebase'
 import { createUserProfile, checkUsernameAvailable } from './userProgress'
 import { normalizeUsername } from '../utils/outfitKeys'
 
-const AUTH_EMAIL_DOMAIN = 'brilliant-clone.local'
+const AUTH_EMAIL_DOMAIN = import.meta.env.VITE_AUTH_EMAIL_DOMAIN ?? 'brilliant-clone.local'
 
 export function toAuthEmail(username: string): string {
   return `${normalizeUsername(username)}@${AUTH_EMAIL_DOMAIN}`

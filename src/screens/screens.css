@@ -203,10 +203,18 @@
     flex-direction: row;
     align-items: flex-start;
     text-align: left;
+    gap: 1.75rem;
   }
 
   .lesson-screen__play-area--centered {
     justify-content: center;
+  }
+}
+
+/* Roomier lesson padding on tablets & desktops */
+@media (min-width: 768px) {
+  .lesson-screen {
+    padding: 2rem 2.25rem;
   }
 }
 
@@ -292,6 +300,13 @@
   width: 100%;
   max-width: 280px;
   margin: 0 auto;
+}
+
+/* Give the princess a bit more presence on larger tablets & desktops */
+@media (min-width: 1024px) {
+  .princess-canvas {
+    max-width: 320px;
+  }
 }
 
 .princess-canvas__stage {
@@ -828,6 +843,20 @@
 }
 
 .lesson-summary__shortcut h2 {
+  font-size: 1.125rem;
+  margin: 0 0 0.75rem;
+  color: var(--color-primary);
+}
+
+.lesson-summary__practice {
+  background: #f0f9ff;
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  text-align: left;
+}
+
+.lesson-summary__practice h2 {
   font-size: 1.125rem;
   margin: 0 0 0.75rem;
   color: var(--color-primary);
