@@ -121,6 +121,8 @@ Required Firebase values live in `.env` as `VITE_FIREBASE_*`. Optional:
 - `CARTESIA_MODEL_ID`
 - `CARTESIA_VERSION`
 - `CARTESIA_DEFAULT_VOICE_ID`
+- `FIREBASE_STORAGE_BUCKET`
+- `FIREBASE_SERVICE_ACCOUNT_KEY` or `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`
 
 OpenAI-backed hints, graph Feedback summaries, generated theme packs, and Cartesia voice clips run through Vercel-style API routes in `api/`. Coach Hint uses a second OpenAI safety pass so generated hints can include helpful numbers without directly revealing final answers. Manual fallback themes, fallback hints, local progress-based Feedback, and voice captions work without server API keys.
 
@@ -130,7 +132,7 @@ For local API testing with Vite, `npm run dev` serves the same `/api` routes thr
 npx vercel dev
 ```
 
-Voice audio uses `CARTESIA_API` and returns MP3 data URLs directly; it does not currently cache generated audio in Firebase Storage.
+Voice audio uses `CARTESIA_API`. When the server-only Firebase Admin env vars above are configured, `/api/get-voice-clip` caches stable default-theme narration/direction MP3s globally in Firebase Storage and caches custom/generated-theme narration under the signed-in user. Correct/try-again feedback clips are intentionally not cached so they can regenerate with fresh AI wording. Without Firebase Admin credentials, voice still works by returning MP3 data URLs directly.
 
 ## Scripts
 

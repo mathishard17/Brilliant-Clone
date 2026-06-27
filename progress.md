@@ -139,7 +139,7 @@ Concise milestone log for **Counting Adventures**.
 - Latest `npm run build` passes after the optional-visual-gating, Coach Hint safety, Firestore save, and Lesson 1 outfit wording updates.
 - Vite still reports the existing large chunk warning.
 - Live Firebase site may need redeploy to include recent curriculum and theme changes.
-- Voice work has Lesson 1-5 UI integration and a Cartesia-backed Vercel API route; production voice still needs deploy QA and selected production voice IDs.
+- Voice work has Lesson 1-5 UI integration and a Cartesia-backed Vercel API route; stable default-theme narration MP3s cache globally in Firebase Storage, custom/generated-theme narration caches by user, and feedback clips regenerate without Storage caching. Production voice still needs deploy QA and selected production voice IDs.
 - Shared per-lesson theme-pack contracts for Lessons 2–5 remain future architecture work; today’s implementation uses bridge helpers plus shared theme-state tokens.
 
 ## Next

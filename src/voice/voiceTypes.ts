@@ -40,6 +40,8 @@ export interface VoiceClipRequest {
   themePreference: ThemePreference
   cacheBust?: string
   feedbackContext?: VoiceFeedbackContext
+  storageCacheScope?: 'global' | 'user'
+  storageCacheUserId?: string
 }
 
 export interface VoiceClipResponse {
@@ -47,6 +49,7 @@ export interface VoiceClipResponse {
   audioUrl?: string
   caption: string
   scriptHash: string
+  cacheSource?: 'data-url' | 'firebase-storage' | 'firebase-storage-new'
   debugError?: string
 }
 

@@ -232,7 +232,7 @@ export function HomeHub({ princessName }: HomeHubProps) {
     ? getThemedLessonDisplay(resetLesson, activeTheme, profile.themePreference).title
     : ''
   const resetMessage = resetLesson
-    ? `Reset all progress for ${resetLessonTitle}? This clears saved answers, lesson steps, and cached voice audio.`
+    ? `Reset all progress for ${resetLessonTitle}? This clears saved answers and lesson steps.`
     : ''
   const graphLessons: KnowledgeGraphLesson[] = LESSON_DEFINITIONS.map((lesson) => {
     const lessonDisplay = getThemedLessonDisplay(lesson, activeTheme, profile.themePreference)

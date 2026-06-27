@@ -8,6 +8,8 @@ import {
   type VoiceClipStatus,
 } from '../voice'
 import { useLesson } from './useLesson'
+import { useAuth } from './useAuth'
+import { DEFAULT_LESSON_1_THEMES } from '../themes/defaultThemes'
 import { resolveLesson1Theme } from '../themes/themeResolver'
 import { claimExclusiveAudio, releaseExclusiveAudio } from '../utils/exclusiveAudio'
 
@@ -22,9 +24,13 @@ interface UseVoiceClipState {
 
 export function useVoiceClip(request: VoiceClipRequest) {
   const { profile } = useLesson()
+  const { user } = useAuth()
   const { clipKey, feedbackContext, lessonId, themePreference } = request
   const activeTheme = resolveLesson1Theme(profile.themePreference, profile.themePacks)
   const requestClip = getVoiceClip(clipKey, activeTheme)
+  const defaultTheme = DEFAULT_LESSON_1_THEMES[profile.themePreference]
+  const storageCacheScope =
+    defaultTheme && JSON.stringify(activeTheme) === JSON.stringify(defaultTheme) ? 'global' : 'user'
   const lessonVoiceCacheVersion = getLessonVoiceCacheVersion(lessonId)
   const feedbackRequestKey = feedbackContext
     ? `${feedbackContext.outcome}:${feedbackContext.nonce}:${feedbackContext.message}`
@@ -51,6 +57,8 @@ export function useVoiceClip(request: VoiceClipRequest) {
       clipKey,
       cacheBust: lessonVoiceCacheVersion,
       feedbackContext,
+      storageCacheScope,
+      storageCacheUserId: user?.uid,
       themePreference,
     }, activeTheme)
     responseRef.current =
@@ -65,7 +73,17 @@ export function useVoiceClip(request: VoiceClipRequest) {
       status: nextResponse.status,
     }))
     return nextResponse
-  }, [activeTheme, clipKey, feedbackContext, lessonId, lessonVoiceCacheVersion, requestKey, themePreference])
+  }, [
+    activeTheme,
+    clipKey,
+    feedbackContext,
+    lessonId,
+    lessonVoiceCacheVersion,
+    requestKey,
+    storageCacheScope,
+    themePreference,
+    user?.uid,
+  ])
 
   const play = useCallback(async () => {
     const nextResponse = await loadClip()
