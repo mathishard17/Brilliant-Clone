@@ -1,11 +1,11 @@
-import { THEME_PREFERENCES, type ThemePreference } from '../themes/themeTypes'
+import type { ThemePreference } from '../themes/themeTypes'
 import type { ThemeVoiceProfile } from './voiceTypes'
 
 const CARTESIA_PROVIDER = 'cartesia' as const
 
-export const DEFAULT_VOICE_THEME: ThemePreference = 'royal'
+const DEFAULT_VOICE_THEME: ThemePreference = 'royal'
 
-export const THEME_VOICE_PROFILES: Record<ThemePreference, ThemeVoiceProfile> = {
+const THEME_VOICE_PROFILES: Record<ThemePreference, ThemeVoiceProfile> = {
   royal: {
     themePreference: 'royal',
     provider: CARTESIA_PROVIDER,
@@ -58,8 +58,4 @@ export const THEME_VOICE_PROFILES: Record<ThemePreference, ThemeVoiceProfile> = 
 
 export function getThemeVoiceProfile(themePreference: ThemePreference): ThemeVoiceProfile {
   return THEME_VOICE_PROFILES[themePreference] ?? THEME_VOICE_PROFILES[DEFAULT_VOICE_THEME]
-}
-
-export function getAllThemeVoiceProfiles(): ThemeVoiceProfile[] {
-  return THEME_PREFERENCES.map((themePreference) => THEME_VOICE_PROFILES[themePreference])
 }

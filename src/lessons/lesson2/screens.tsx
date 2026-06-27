@@ -1,9 +1,10 @@
-import { useState, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import '../../screens/screens.css'
 import { ChallengeQuestion } from '../../components/ChallengeQuestion'
 import { ClickthroughMiniLesson } from '../../components/ClickthroughMiniLesson'
 import { DefaultInteractiveVisualization } from '../../components/DefaultInteractiveVisualization'
 import { FeedbackBanner } from '../../components/FeedbackBanner'
+import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
@@ -28,6 +29,7 @@ import {
 import type { Lesson1ThemePack, ThemeMotifShape } from '../../themes/themeTypes'
 import { LESSON_2_ID } from '../../types/lesson'
 import { playCompletionTada } from '../../utils/completionSound'
+import { getProfileLessonProgress } from '../../utils/lessonProgress'
 
 interface Lesson2SectionProps {
   princessName: string
@@ -36,6 +38,65 @@ interface Lesson2SectionProps {
 type JewelMode = 'normal' | 'restricted' | 'identical'
 type StableJewelValue = 'ruby' | 'sapphire' | 'gold'
 type JewelLabelKey = 'firstItemLabel' | 'secondItemLabel' | 'thirdItemLabel'
+
+interface ChallengeUiState {
+  answerInput: string
+  attemptedAnswers: string[]
+  submitted: boolean
+  isCorrect: boolean | null
+  wrongAttempts: number
+}
+
+interface MiniLessonProgressState extends Record<string, unknown> {
+  pageIndex: number
+  challengeStates: Record<string, ChallengeUiState>
+}
+
+function createChallengeUiState(): ChallengeUiState {
+  return {
+    answerInput: '',
+    attemptedAnswers: [],
+    submitted: false,
+    isCorrect: null,
+    wrongAttempts: 0,
+  }
+}
+
+function createMiniLessonProgressState(): MiniLessonProgressState {
+  return {
+    pageIndex: 0,
+    challengeStates: {},
+  }
+}
+
+function clampPageIndex(pageIndex: number, pageCount: number) {
+  if (pageCount <= 0) return 0
+  return Math.min(Math.max(pageIndex, 0), pageCount - 1)
+}
+
+function getSavedChallengeState(progress: MiniLessonProgressState, pageId: string): ChallengeUiState {
+  return {
+    ...createChallengeUiState(),
+    ...progress.challengeStates[pageId],
+  }
+}
+
+function recordChallengeAttempt(
+  current: ChallengeUiState,
+  normalizedAnswer: string,
+  correct: boolean,
+  countWrongAttempt: boolean,
+): ChallengeUiState {
+  return {
+    ...current,
+    attemptedAnswers: current.attemptedAnswers.includes(normalizedAnswer)
+      ? current.attemptedAnswers
+      : [...current.attemptedAnswers, normalizedAnswer],
+    submitted: true,
+    isCorrect: correct,
+    wrongAttempts: countWrongAttempt ? current.wrongAttempts + 1 : current.wrongAttempts,
+  }
+}
 
 const DISPLAY_TOKENS = [
   { id: 'ruby', value: 'ruby', labelKey: 'firstItemLabel', className: 'marble-visualization__marble--red' },
@@ -116,7 +177,7 @@ function marbleStyle(motif: Lesson2ItemMotif, fallbackPrimary: string): CSSPrope
   return {
     ...motifShapeStyle(motif.motifShape),
     background: `radial-gradient(circle at 32% 28%, ${motif.background} 0 18%, ${primary} 19% 100%)`,
-    borderColor: motif.border ?? 'rgb(255 255 255 / 0.8)',
+    borderColor: motif.border ?? 'var(--theme-neutral-border, rgb(148 163 184 / 0.42))',
   }
 }
 
@@ -151,7 +212,7 @@ function createLesson2VisualTheme(theme: Lesson1ThemePack): Lesson2VisualTheme {
       opacity: 1,
       background: 'var(--theme-hint-bg, #eff6ff)',
       borderColor: 'var(--theme-accent, var(--color-primary))',
-      boxShadow: `0 0 0 3px ${motif.secondary}`,
+      boxShadow: '0 0 0 3px color-mix(in srgb, var(--schema-neon, var(--theme-accent, #22d3ee)) 28%, transparent)',
     },
     ordersStyle: {
       background: 'var(--theme-panel-bg, #fff)',
@@ -211,22 +272,23 @@ function MarblePermutationVisualization({
   visualTheme,
   onSolved,
 }: MarblePermutationVisualizationProps) {
-  const [state, setState] = useSectionState(`lesson-2-${mode}`, {
-    placedMarbles: [] as string[],
+  const [state, setState] = useSectionState(`lesson-2-${mode}-visual-proof`, {
     uniqueOrders: [] as FoundJewelOrder[],
-    answerInput: '',
-    submitted: false,
-    isCorrect: null as boolean | null,
-    wrongAttempts: 0,
   })
-  const { profile } = useLesson()
+  const { profile, recordStudentMemoryEvent } = useLesson()
+  const [placedMarbles, setPlacedMarbles] = useState<string[]>([])
+  const [challengeState, setChallengeState] = useState(createChallengeUiState)
   const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
-  const { placedMarbles, uniqueOrders, answerInput, submitted, isCorrect, wrongAttempts } = state
+  const { uniqueOrders } = state
+  const { answerInput, attemptedAnswers, submitted, isCorrect, wrongAttempts } = challengeState
   const jewels: readonly Jewel[] = mode === 'identical' ? IDENTICAL_FIRST_TOKENS : DISPLAY_TOKENS
   const targetAnswer = mode === 'normal' ? 6 : mode === 'restricted' ? 4 : 3
   const validOrdersFound = uniqueOrders.filter((order) => order.valid).length
   const answerMatchesTarget = Number(answerInput) === targetAnswer
   const visualSolved = validOrdersFound >= targetAnswer
+  const optionalProofNudge = visualSolved
+    ? ''
+    : ` You can keep using the display to test more ${themeText.arrangementNounPlural}, or continue when you're ready.`
   const prompt =
     mode === 'normal'
       ? `How many different display orders can you make with 3 different ${themeText.itemNounPlural}?`
@@ -249,6 +311,7 @@ function MarblePermutationVisualization({
   function placeMarble(marbleId: string) {
     if (placedMarbles.includes(marbleId) || placedMarbles.length >= jewels.length) return
     const next = [...placedMarbles, marbleId]
+    setPlacedMarbles(next)
     let nextOrders = uniqueOrders
     if (next.length === jewels.length) {
       const values = next.map((id) => getMarble(id)?.value ?? id)
@@ -258,18 +321,29 @@ function MarblePermutationVisualization({
         ? uniqueOrders
         : [...uniqueOrders, { key, order: next, valid }]
     }
-    setState({ placedMarbles: next, uniqueOrders: nextOrders })
+    if (nextOrders !== uniqueOrders) {
+      setState({ uniqueOrders: nextOrders })
+    }
   }
 
   function resetMarbles() {
-    setState({ placedMarbles: [] })
+    setPlacedMarbles([])
   }
 
   function handleSubmit() {
-    const correct = answerMatchesTarget && visualSolved
-    const nextWrongAttempts = answerMatchesTarget ? wrongAttempts : wrongAttempts + 1
+    const normalizedAnswer = answerInput.trim()
+    const correct = answerMatchesTarget
     if (correct) onSolved()
-    setState({ submitted: true, isCorrect: correct, wrongAttempts: nextWrongAttempts })
+    setChallengeState((current) => recordChallengeAttempt(current, normalizedAnswer, correct, !correct))
+    void recordStudentMemoryEvent({
+      type: 'challengeAttempt',
+      lessonId: LESSON_2_ID,
+      conceptKey: `lesson-2-${mode}`,
+      label: 'Ordered arrangements',
+      outcome: correct ? 'correct' : 'incorrect',
+      learnerAnswer: normalizedAnswer,
+      correctAnswer: String(targetAnswer),
+    }).catch(() => undefined)
     setFeedbackVoiceToken((token) => token + 1)
   }
 
@@ -392,13 +466,33 @@ function MarblePermutationVisualization({
       </div>
 
       <ChallengeQuestion
-        key={`${mode}-${visualSolved ? 'visual-complete' : 'visual-incomplete'}`}
+        key={mode}
         prompt={prompt}
         value={answerInput}
-        onChange={(value) => setState({ answerInput: value })}
+        onChange={(value) => setChallengeState((current) => ({ ...current, answerInput: value }))}
         onSubmit={handleSubmit}
+        attemptedAnswers={attemptedAnswers}
         submitted={submitted}
         allowRetry={submitted && isCorrect === false}
+      />
+      <HintButton
+        lessonId={LESSON_2_ID}
+        conceptKey={`lesson-2-${mode}`}
+        conceptLabel="Ordered arrangements"
+        prompt={prompt}
+        context={`The learner is arranging ${themeText.itemNounPlural} in spots and checking unique visible ${themeText.arrangementNounPlural}.`}
+        fallbackHint={
+          mode === 'restricted'
+            ? `Start with the first spot, then skip any ${themeText.itemNoun} that is not allowed there.`
+            : mode === 'identical'
+              ? `Ask which ${themeText.itemNoun} actually changes the visible display.`
+              : `Pick the first spot first, then count what is left for the next spot.`
+        }
+        blockedAnswerTerms={[String(targetAnswer)]}
+        learnerAnswer={answerInput}
+        attemptedAnswers={attemptedAnswers}
+        wrongAttempts={wrongAttempts}
+        disabled={!submitted || isCorrect === true}
       />
 
       {submitted && isCorrect !== null && (
@@ -415,14 +509,10 @@ function MarblePermutationVisualization({
           message={
             isCorrect
               ? mode === 'normal'
-                ? `Exactly, ${princessName}! **3 × 2 × 1 = 6** ${themeText.itemNoun} ${themeText.arrangementNounPlural}.`
+                ? `Exactly, ${princessName}! **3 × 2 × 1 = 6** ${themeText.itemNoun} ${themeText.arrangementNounPlural}.${optionalProofNudge}`
                 : mode === 'restricted'
-                  ? `Exactly, ${princessName}! ${themeText.firstItemLabel} cannot go first, so **2 × 2 × 1 = 4** valid ${themeText.arrangementNounPlural}.`
-                  : `Exactly, ${princessName}! The two ${themeText.firstItemLabel} ${themeText.itemNounPlural} match, so there are **3** visible displays.`
-              : answerMatchesTarget && !visualSolved
-                ? `Your answer is right, ${princessName}! To unlock Continue, click through and build all the valid ${themeText.arrangementNounPlural} in the visual proof above, then submit again.`
-                : answerMatchesTarget && visualSolved
-                  ? `Great visual proof, ${princessName}! Submit the same answer again to unlock Continue.`
+                  ? `Exactly, ${princessName}! ${themeText.firstItemLabel} cannot go first, so **2 × 2 × 1 = 4** valid ${themeText.arrangementNounPlural}.${optionalProofNudge}`
+                  : `Exactly, ${princessName}! The two ${themeText.firstItemLabel} ${themeText.itemNounPlural} match, so there are **3** visible displays.${optionalProofNudge}`
               : wrongAttempts >= 2
                 ? mode === 'normal'
                   ? `Not quite, ${princessName}! Think spot by spot: pick the first ${themeText.itemNoun}, then count what remains for the next spot and the last spot.`
@@ -480,6 +570,10 @@ function Lesson2VisualizationSection({
         ? 'lesson2.screen2.restrictionIntro'
         : null
   const visualization = (() => {
+    const handleSolved = () => {
+      if (!challengeSolved) setSectionState({ challengeSolved: true })
+    }
+
     if (section.visualization === 'marble-permutations') {
       return (
         <MarblePermutationVisualization
@@ -487,7 +581,7 @@ function Lesson2VisualizationSection({
           mode="normal"
           themeText={themeText}
           visualTheme={visualTheme}
-          onSolved={() => setSectionState({ challengeSolved: true })}
+          onSolved={handleSolved}
         />
       )
     }
@@ -498,7 +592,7 @@ function Lesson2VisualizationSection({
           mode="restricted"
           themeText={themeText}
           visualTheme={visualTheme}
-          onSolved={() => setSectionState({ challengeSolved: true })}
+          onSolved={handleSolved}
         />
       )
     }
@@ -509,7 +603,7 @@ function Lesson2VisualizationSection({
           mode="identical"
           themeText={themeText}
           visualTheme={visualTheme}
-          onSolved={() => setSectionState({ challengeSolved: true })}
+          onSolved={handleSolved}
         />
       )
     }
@@ -556,37 +650,52 @@ export function Lesson2VisualizationOne({ princessName }: Lesson2SectionProps) {
 }
 
 export function Lesson2Clickthrough() {
-  const { profile, updateScreen } = useLesson()
+  const { profile, recordStudentMemoryEvent, updateScreen } = useLesson()
   const { themeText, visualTheme } = useLesson2Theme()
   const miniLesson = lesson2Clickthrough(themeText)
-  const [state, setState] = useSectionState('lesson-2-factorials', {
-    pageIndex: 0,
-    answerInput: '',
-    submitted: false,
-    isCorrect: null as boolean | null,
-    wrongAttempts: 0,
-  })
+  const [miniLessonState, setMiniLessonState] = useSectionState(
+    'lesson-2-factorials-clickthrough',
+    createMiniLessonProgressState(),
+  )
   const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
-  const { pageIndex, answerInput, submitted, isCorrect, wrongAttempts } = state
+  const pageIndex = clampPageIndex(miniLessonState.pageIndex, miniLesson.pages.length)
+  const currentPage = miniLesson.pages[pageIndex]
+  const challengeState = isClickthroughChallengePage(currentPage)
+    ? getSavedChallengeState(miniLessonState, currentPage.id)
+    : createChallengeUiState()
+  const { answerInput, attemptedAnswers, submitted, isCorrect, wrongAttempts } = challengeState
+
+  function saveChallengeState(
+    page: Extract<Lesson2ClickthroughPage, { type: 'challenge' }>,
+    nextChallengeState: ChallengeUiState,
+  ) {
+    setMiniLessonState({
+      challengeStates: {
+        ...miniLessonState.challengeStates,
+        [page.id]: nextChallengeState,
+      },
+    })
+  }
 
   function handleSubmit(page: Extract<Lesson2ClickthroughPage, { type: 'challenge' }>) {
+    const normalizedAnswer = answerInput.trim()
     const correct = Number(answerInput) === page.answer
-    setState({
-      submitted: true,
-      isCorrect: correct,
-      wrongAttempts: correct ? wrongAttempts : wrongAttempts + 1,
-    })
+    const nextChallengeState = recordChallengeAttempt(challengeState, normalizedAnswer, correct, !correct)
+    saveChallengeState(page, nextChallengeState)
+    void recordStudentMemoryEvent({
+      type: 'challengeAttempt',
+      lessonId: LESSON_2_ID,
+      conceptKey: `lesson-2-${page.id}`,
+      label: 'Factorial shortcuts',
+      outcome: correct ? 'correct' : 'incorrect',
+      learnerAnswer: normalizedAnswer,
+      correctAnswer: String(page.answer),
+    }).catch(() => undefined)
     setFeedbackVoiceToken((token) => token + 1)
   }
 
   function handlePageChange(nextPageIndex: number) {
-    setState({
-      pageIndex: nextPageIndex,
-      answerInput: '',
-      submitted: false,
-      isCorrect: null,
-      wrongAttempts: 0,
-    })
+    setMiniLessonState({ pageIndex: nextPageIndex })
   }
 
   return (
@@ -610,12 +719,26 @@ export function Lesson2Clickthrough() {
                 <ChallengeQuestion
                   prompt={page.prompt}
                   value={answerInput}
-                  onChange={(value) => setState({ answerInput: value })}
+                  onChange={(value) => saveChallengeState(page, { ...challengeState, answerInput: value })}
                   onSubmit={() => handleSubmit(page)}
+                  attemptedAnswers={attemptedAnswers}
                   submitted={submitted}
                   allowRetry={submitted && isCorrect === false}
                 />
-                {page.body && <LessonText text={page.body} />}
+                <HintButton
+                  lessonId={LESSON_2_ID}
+                  conceptKey={`lesson-2-${page.id}`}
+                  conceptLabel="Factorial shortcuts"
+                  prompt={page.prompt}
+                  context={page.body ?? 'The learner is using spot-by-spot counting to reason about arrangements.'}
+                  fallbackHint={page.feedback?.tryAgain ?? 'Count the first spot, then count what remains for each next spot.'}
+                  blockedAnswerTerms={[String(page.answer)]}
+                  learnerAnswer={answerInput}
+                  attemptedAnswers={attemptedAnswers}
+                  wrongAttempts={wrongAttempts}
+                  disabled={!submitted || isCorrect === true}
+                />
+                {page.body && <LessonText text={page.body} className="anchor-lesson__text" />}
                 {submitted && isCorrect !== null && (
                   <FeedbackBanner
                     variant={isCorrect ? 'success' : 'error'}
@@ -679,32 +802,69 @@ export function Lesson2VisualizationThree({ princessName }: Lesson2SectionProps)
 }
 
 export function Lesson2FinalClickthrough() {
-  const { profile, updateLesson, updateScreen } = useLesson()
+  const { profile, recordStudentMemoryEvent, updateLesson, updateScreen } = useLesson()
+  const activeLesson = getProfileLessonProgress(profile, LESSON_2_ID)
   const { themeText, visualTheme } = useLesson2Theme()
   const miniLesson = lesson2FinalClickthrough(themeText)
-  const [state, setState] = useSectionState('lesson-2-final-check', {
-    pageIndex: 0,
-    answerInput: '',
-    submitted: false,
-    isCorrect: null as boolean | null,
-    wrongAttempts: 0,
-  })
+  const [miniLessonState, setMiniLessonState] = useSectionState(
+    'lesson-2-final-clickthrough',
+    createMiniLessonProgressState(),
+  )
+  const finishInFlightRef = useRef(false)
+  const [isFinishing, setIsFinishing] = useState(false)
   const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
-  const { pageIndex, answerInput, submitted, isCorrect, wrongAttempts } = state
+  const pageIndex = clampPageIndex(miniLessonState.pageIndex, miniLesson.pages.length)
+  const currentPage = miniLesson.pages[pageIndex]
+  const challengeState = isFinalChallengePage(currentPage)
+    ? getSavedChallengeState(miniLessonState, currentPage.id)
+    : createChallengeUiState()
+  const { answerInput, attemptedAnswers, submitted, isCorrect, wrongAttempts } = challengeState
+
+  function saveChallengeState(
+    page: Extract<Lesson2FinalPage, { type: 'challenge' }>,
+    nextChallengeState: ChallengeUiState,
+  ) {
+    setMiniLessonState({
+      challengeStates: {
+        ...miniLessonState.challengeStates,
+        [page.id]: nextChallengeState,
+      },
+    })
+  }
 
   function handleSubmit(page: Extract<Lesson2FinalPage, { type: 'challenge' }>) {
+    const normalizedAnswer = answerInput.trim()
     const correct = Number(answerInput) === page.answer
-    setState({
-      submitted: true,
-      isCorrect: correct,
-      wrongAttempts: correct ? wrongAttempts : wrongAttempts + 1,
-    })
+    const nextChallengeState = recordChallengeAttempt(challengeState, normalizedAnswer, correct, !correct)
+    saveChallengeState(page, nextChallengeState)
+    void recordStudentMemoryEvent({
+      type: 'challengeAttempt',
+      lessonId: LESSON_2_ID,
+      conceptKey: `lesson-2-${page.id}`,
+      label: 'Arrangement transfer',
+      outcome: correct ? 'correct' : 'incorrect',
+      learnerAnswer: normalizedAnswer,
+      correctAnswer: String(page.answer),
+    }).catch(() => undefined)
     setFeedbackVoiceToken((token) => token + 1)
   }
 
   async function handleFinish() {
-    playCompletionTada()
-    await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    if (finishInFlightRef.current) return
+    finishInFlightRef.current = true
+    setIsFinishing(true)
+    try {
+      if (activeLesson.completed) {
+        await updateScreen(0)
+        return
+      }
+      playCompletionTada()
+      await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    } catch (error) {
+      finishInFlightRef.current = false
+      setIsFinishing(false)
+      throw error
+    }
   }
 
   return (
@@ -714,13 +874,15 @@ export function Lesson2FinalClickthrough() {
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
         currentPageIndex={pageIndex}
-        onPageChange={(nextPageIndex) => setState({ pageIndex: nextPageIndex })}
+        onPageChange={(nextPageIndex) => setMiniLessonState({ pageIndex: nextPageIndex })}
         onComplete={handleFinish}
         nextLabel="Next"
-        completeLabel="Finish Lesson"
+        completeLabel={activeLesson.completed ? 'Return to Academy' : 'Finish Lesson'}
         navClassName="anchor-lesson__nav"
         showDots
-        showNext={(page) => !isFinalChallengePage(page) || isCorrect === true}
+        showNext={(page) =>
+          activeLesson.completed || !isFinalChallengePage(page) || (isCorrect === true && !isFinishing)
+        }
         renderPage={(page) => {
           if (isFinalChallengePage(page)) {
             return (
@@ -728,10 +890,24 @@ export function Lesson2FinalClickthrough() {
                 <ChallengeQuestion
                   prompt={page.prompt}
                   value={answerInput}
-                  onChange={(value) => setState({ answerInput: value })}
+                  onChange={(value) => saveChallengeState(page, { ...challengeState, answerInput: value })}
                   onSubmit={() => handleSubmit(page)}
+                  attemptedAnswers={attemptedAnswers}
                   submitted={submitted}
                   allowRetry={submitted && isCorrect === false}
+                />
+                <HintButton
+                  lessonId={LESSON_2_ID}
+                  conceptKey={`lesson-2-${page.id}`}
+                  conceptLabel="Arrangement transfer"
+                  prompt={page.prompt}
+                  context="The learner is transferring ordered arrangement reasoning to a final check."
+                  fallbackHint={page.feedback?.tryAgain ?? 'Think about each spot separately, then combine the choices.'}
+                  blockedAnswerTerms={[String(page.answer)]}
+                  learnerAnswer={answerInput}
+                  attemptedAnswers={attemptedAnswers}
+                  wrongAttempts={wrongAttempts}
+                  disabled={!submitted || isCorrect === true}
                 />
                 {submitted && isCorrect !== null && (
                   <FeedbackBanner

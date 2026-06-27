@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import '../screens/screens.css'
 import { ClickthroughMiniLesson } from '../components/ClickthroughMiniLesson'
 import { LessonText } from '../components/LessonText'
@@ -13,9 +13,9 @@ import {
   type Screen4PracticePage,
 } from '../lessons/lesson1/copy'
 import { useLesson } from '../hooks/useLesson'
-import { useSectionState } from '../hooks/useSectionState'
 import { LESSON_1_ID } from '../types/lesson'
 import { showDevNav } from '../utils/devMode'
+import { getProfileLessonProgress } from '../utils/lessonProgress'
 import {
   getLesson1ThemeCopy,
   getThemeCategory,
@@ -32,57 +32,120 @@ function isPracticePage(page: Screen4MiniLessonPage): page is Screen4PracticePag
   return page.type === 'challenge'
 }
 
+interface LessonSummaryState {
+  pageIndex: number
+  practiceAnswer: string
+  practiceSubmitted: boolean
+  practiceCorrect: boolean | null
+  practiceWrongAttempts: number
+  practiceAttemptedAnswers: string[]
+}
+
+const SUMMARY_SECTION_ID = 'lesson-1-summary'
+const SUMMARY_DEFAULT_STATE: LessonSummaryState = {
+  pageIndex: 0,
+  practiceAnswer: '',
+  practiceSubmitted: false,
+  practiceCorrect: null,
+  practiceWrongAttempts: 0,
+  practiceAttemptedAnswers: [],
+}
+
 export function LessonSummary({ princessName }: LessonSummaryProps) {
-  const { profile, updateLesson, updateScreen } = useLesson()
+  const { profile, recordStudentMemoryEvent, updateLesson, updateScreen } = useLesson()
+  const activeLesson = getProfileLessonProgress(profile, LESSON_1_ID)
   const theme = resolveLesson1Theme(profile.themePreference, profile.themePacks)
   const copy = getLesson1ThemeCopy(theme)
   const crownsLabel = getThemeCategory(theme, 'crowns')?.label ?? 'top choices'
   const dressesLabel = getThemeCategory(theme, 'dresses')?.label ?? 'middle choices'
   const shoesLabel = getThemeCategory(theme, 'shoes')?.label ?? 'third choices'
   const miniLesson = useMemo(() => screen4MiniLesson(princessName), [princessName])
-  const [summaryState, setSummaryState] = useSectionState('lesson-1-summary', {
-    pageIndex: 0,
-    practiceAnswer: '',
-    practiceSubmitted: false,
-    practiceCorrect: null as boolean | null,
-    practiceWrongAttempts: 0,
-    practiceAttemptedAnswers: [] as string[],
-  })
+  const savedSummaryState = activeLesson.sectionState[SUMMARY_SECTION_ID] as
+    | Partial<LessonSummaryState>
+    | undefined
+  const summaryState: LessonSummaryState = { ...SUMMARY_DEFAULT_STATE, ...savedSummaryState }
   const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
   const {
     pageIndex,
-    practiceAnswer,
     practiceSubmitted,
     practiceCorrect,
     practiceWrongAttempts,
     practiceAttemptedAnswers,
   } = summaryState
+  const [practiceAnswer, setPracticeAnswer] = useState(
+    typeof summaryState.practiceAnswer === 'string' ? summaryState.practiceAnswer : '',
+  )
+  const finishInFlightRef = useRef(false)
+  const practiceSubmitInFlightRef = useRef(false)
 
   const practicePageIndex = miniLesson.pages.findIndex(isPracticePage)
   const closingPageIndex = miniLesson.pages.findIndex((page) => page.id === 'lesson-1-complete')
   const practicePrompt = `${copy.practicePrompt} There are **4 ${crownsLabel}**, **5 ${dressesLabel}**, and **2 ${shoesLabel}**. How many ${copy.lookNamePlural} can you make?`
   const practiceEquation = `4 ${crownsLabel} × 5 ${dressesLabel} × 2 ${shoesLabel} = 40 ${copy.lookNamePlural}`
 
+  function setSummaryState(partial: Partial<LessonSummaryState>) {
+    void updateLesson({
+      sectionState: {
+        [SUMMARY_SECTION_ID]: {
+          ...summaryState,
+          ...partial,
+        },
+      },
+    }, LESSON_1_ID)
+  }
+
   async function handleFinish() {
-    playCompletionTada()
-    await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 4 })
+    if (finishInFlightRef.current) return
+    finishInFlightRef.current = true
+    try {
+      if (activeLesson.completed) {
+        await updateScreen(0, LESSON_1_ID)
+        return
+      }
+      playCompletionTada()
+      await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 4 }, LESSON_1_ID)
+    } finally {
+      finishInFlightRef.current = false
+    }
+  }
+
+  function handlePageChange(nextPageIndex: number) {
+    if (nextPageIndex === pageIndex) return
+    setSummaryState({ pageIndex: nextPageIndex })
+  }
+
+  function handlePracticeAnswerChange(value: string) {
+    practiceSubmitInFlightRef.current = false
+    setPracticeAnswer(value)
   }
 
   function handlePracticeSubmit() {
+    if (practiceSubmitInFlightRef.current) return
     const practicePage = miniLesson.pages.find(isPracticePage)
     if (!practicePage) return
 
+    practiceSubmitInFlightRef.current = true
     const normalizedAnswer = practiceAnswer.trim()
     const correct = Number(practiceAnswer) === practicePage.answer
     const attemptedAnswers = practiceAttemptedAnswers.includes(normalizedAnswer)
       ? practiceAttemptedAnswers
       : [...practiceAttemptedAnswers, normalizedAnswer]
     setSummaryState({
+      practiceAnswer: normalizedAnswer,
       practiceSubmitted: true,
       practiceCorrect: correct,
       practiceWrongAttempts: correct ? practiceWrongAttempts : practiceWrongAttempts + 1,
       practiceAttemptedAnswers: attemptedAnswers,
     })
+    void recordStudentMemoryEvent({
+      type: 'challengeAttempt',
+      lessonId: LESSON_1_ID,
+      conceptKey: 'multiplication-shortcut',
+      label: 'Multiplication shortcut',
+      outcome: correct ? 'correct' : 'incorrect',
+      learnerAnswer: normalizedAnswer,
+      correctAnswer: String(practicePage.answer),
+    }).catch(() => undefined)
     setFeedbackVoiceToken((token) => token + 1)
   }
 
@@ -124,9 +187,9 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
         label={pageIndex > 0 ? '← Back' : '← Back to Previous Challenge'}
         onClick={() => {
           if (pageIndex > 0) {
-            setSummaryState({ pageIndex: Math.max(pageIndex - 1, 0) })
+            handlePageChange(Math.max(pageIndex - 1, 0))
           } else {
-            void updateScreen(3)
+            void updateScreen(3, LESSON_1_ID)
           }
         }}
       />
@@ -135,7 +198,7 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
         text={`Excellent work, ${princessName}! You discovered how **choices stack up** for ${copy.lookNamePlural}.`}
       />
       <VoiceButton
-        autoPlay={!profile.lesson.completed}
+        autoPlay={!activeLesson.completed}
         enabled={profile.voiceEnabled}
         lessonId={LESSON_1_ID}
         clipKey="lesson1.screen4.shortcutIntro"
@@ -146,14 +209,14 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
         currentPageIndex={pageIndex}
-        onPageChange={(nextPageIndex) => setSummaryState({ pageIndex: nextPageIndex })}
+        onPageChange={handlePageChange}
         onComplete={handleFinish}
         backLabel="← Back"
         nextLabel="Next →"
         completeLabel="Finish Lesson Complete! 🎉"
         navClassName="lesson-summary__step-nav"
         showDots
-        showNext={(page) => !isPracticePage(page) || practiceCorrect === true}
+        showNext={(page) => activeLesson.completed || !isPracticePage(page) || practiceCorrect === true}
         renderPage={(page) => {
           if (isPracticePage(page)) {
             return (
@@ -162,13 +225,16 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
                 <ChallengeQuestion
                   prompt={practicePrompt}
                   value={practiceAnswer}
-                  onChange={(value) => setSummaryState({ practiceAnswer: value })}
+                  onChange={handlePracticeAnswerChange}
                   onSubmit={handlePracticeSubmit}
                   attemptedAnswers={practiceAttemptedAnswers}
                   submitted={practiceSubmitted}
                   allowRetry={practiceSubmitted && practiceCorrect === false}
                 />
                 <HintButton
+                  lessonId={LESSON_1_ID}
+                  conceptKey="multiplication-shortcut"
+                  conceptLabel="Multiplication shortcut"
                   prompt={practicePrompt}
                   context={`The learner is practicing the multiplication shortcut with ${crownsLabel}, ${dressesLabel}, and ${shoesLabel}.`}
                   fallbackHint="Count each category first, then multiply the counts in order."
@@ -179,6 +245,9 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
                     '4 x 5 x 2',
                     'four times five times two',
                   ]}
+                  learnerAnswer={practiceAnswer}
+                  attemptedAnswers={practiceAttemptedAnswers}
+                  wrongAttempts={practiceWrongAttempts}
                   disabled={!practiceSubmitted || practiceCorrect === true}
                 />
                 {practiceSubmitted && practiceCorrect !== null && (
@@ -201,7 +270,7 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
                     }
                   />
                 )}
-                {practiceCorrect === false && practiceWrongAttempts >= 3 && page.feedback?.solution && (
+                {practiceCorrect === false && practiceWrongAttempts >= 3 && (
                   <FeedbackBanner
                     variant="info"
                     message={`${copy.practiceSolution}\n\nSolution: **${practiceEquation}**.`}
@@ -244,21 +313,21 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
             <button
               type="button"
               className={pageIndex < practicePageIndex ? 'active' : ''}
-              onClick={() => setSummaryState({ pageIndex: 0 })}
+              onClick={() => handlePageChange(0)}
             >
               Shortcut
             </button>
             <button
               type="button"
               className={pageIndex === practicePageIndex ? 'active' : ''}
-              onClick={() => setSummaryState({ pageIndex: practicePageIndex })}
+              onClick={() => handlePageChange(practicePageIndex)}
             >
               Practice
             </button>
             <button
               type="button"
               className={pageIndex === closingPageIndex ? 'active' : ''}
-              onClick={() => setSummaryState({ pageIndex: closingPageIndex })}
+              onClick={() => handlePageChange(closingPageIndex)}
             >
               Closing
             </button>

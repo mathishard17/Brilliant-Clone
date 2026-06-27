@@ -1,6 +1,12 @@
 import { useCallback, useRef, useState } from 'react'
 import { getVoiceClipAudio } from '../services/voiceGeneration'
-import { getVoiceClip, type VoiceClipRequest, type VoiceClipResponse, type VoiceClipStatus } from '../voice'
+import {
+  getLessonVoiceCacheVersion,
+  getVoiceClip,
+  type VoiceClipRequest,
+  type VoiceClipResponse,
+  type VoiceClipStatus,
+} from '../voice'
 import { useLesson } from './useLesson'
 import { resolveLesson1Theme } from '../themes/themeResolver'
 import { claimExclusiveAudio, releaseExclusiveAudio } from '../utils/exclusiveAudio'
@@ -16,10 +22,14 @@ interface UseVoiceClipState {
 
 export function useVoiceClip(request: VoiceClipRequest) {
   const { profile } = useLesson()
-  const { clipKey, lessonId, themePreference } = request
+  const { clipKey, feedbackContext, lessonId, themePreference } = request
   const activeTheme = resolveLesson1Theme(profile.themePreference, profile.themePacks)
   const requestClip = getVoiceClip(clipKey, activeTheme)
-  const requestKey = `${lessonId}:${clipKey}:${themePreference}:${requestClip?.scriptHash ?? 'missing'}`
+  const lessonVoiceCacheVersion = getLessonVoiceCacheVersion(lessonId)
+  const feedbackRequestKey = feedbackContext
+    ? `${feedbackContext.outcome}:${feedbackContext.nonce}:${feedbackContext.message}`
+    : 'static'
+  const requestKey = `${lessonId}:${clipKey}:${themePreference}:${requestClip?.scriptHash ?? 'missing'}:${lessonVoiceCacheVersion}:${feedbackRequestKey}`
   const [state, setState] = useState<UseVoiceClipState>({
     caption: null,
     error: null,
@@ -36,8 +46,17 @@ export function useVoiceClip(request: VoiceClipRequest) {
   const loadClip = useCallback(async (): Promise<VoiceClipResponse> => {
     if (responseRef.current?.requestKey === requestKey) return responseRef.current.response
     setState((current) => ({ ...current, requestKey, loading: true, error: null }))
-    const nextResponse = await getVoiceClipAudio({ lessonId, clipKey, themePreference }, activeTheme)
-    responseRef.current = { requestKey, response: nextResponse }
+    const nextResponse = await getVoiceClipAudio({
+      lessonId,
+      clipKey,
+      cacheBust: lessonVoiceCacheVersion,
+      feedbackContext,
+      themePreference,
+    }, activeTheme)
+    responseRef.current =
+      nextResponse.status === 'ready' && nextResponse.audioUrl
+        ? { requestKey, response: nextResponse }
+        : null
     setState((current) => ({
       ...current,
       requestKey,
@@ -46,16 +65,17 @@ export function useVoiceClip(request: VoiceClipRequest) {
       status: nextResponse.status,
     }))
     return nextResponse
-  }, [activeTheme, clipKey, lessonId, requestKey, themePreference])
+  }, [activeTheme, clipKey, feedbackContext, lessonId, lessonVoiceCacheVersion, requestKey, themePreference])
 
   const play = useCallback(async () => {
     const nextResponse = await loadClip()
     if (!nextResponse.audioUrl) {
+      const debugCopy = import.meta.env.DEV && nextResponse.debugError ? ` Debug: ${nextResponse.debugError}` : ''
       setState((current) => ({
         ...current,
         requestKey,
         caption: nextResponse.caption,
-        error: 'Voice audio is not ready yet. Read the caption instead.',
+        error: `Voice audio is not ready yet. Read the caption instead.${debugCopy}`,
         playing: false,
       }))
       return

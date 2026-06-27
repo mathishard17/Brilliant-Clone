@@ -2,7 +2,6 @@ import type { CSSProperties } from 'react'
 import { LESSON_1_ID } from '../types/lesson'
 import { DEFAULT_LESSON_1_THEMES, ROYAL_LESSON_1_THEME } from './defaultThemes'
 import {
-  getLesson1ThemeItemLabel,
   getLesson1ThemeItemLabels,
   getLesson1ThemeItemMotifs,
   themedLesson1Items,
@@ -31,8 +30,8 @@ export function resolveLesson1Theme(
   return DEFAULT_LESSON_1_THEMES[preference] ?? ROYAL_LESSON_1_THEME
 }
 
-export function themedItems(category: ThemeCategory, theme?: Lesson1ThemePack) {
-  const visual = theme ? getLesson1ThemeVisual(theme) : ROYAL_LESSON_1_THEME.visual!
+export function themedItems(category: ThemeCategory, theme: Lesson1ThemePack) {
+  const visual = getLesson1ThemeVisual(theme)
   return themedLesson1Items(category, visual, theme)
 }
 
@@ -41,15 +40,19 @@ export function getThemeCategory(theme: Lesson1ThemePack, key: ThemeCategory['ke
 }
 
 export function getLesson1ThemeVisual(theme: Lesson1ThemePack): Lesson1ThemeVisual {
-  return theme.visual ?? ROYAL_LESSON_1_THEME.visual!
+  const visual = theme.visual ?? ROYAL_LESSON_1_THEME.visual!
+  if (!visual.assetPack || !visual.characterConfig || visual.characterConfig.assetPack) return visual
+  return {
+    ...visual,
+    characterConfig: {
+      ...visual.characterConfig,
+      assetPack: visual.assetPack,
+    },
+  }
 }
 
 export function getLesson1ThemeCopy(theme: Lesson1ThemePack): Lesson1ThemeCopy {
   return theme.copy ?? ROYAL_LESSON_1_THEME.copy!
-}
-
-export function getThemeItemLabel(theme: Lesson1ThemePack, categoryKey: ThemeCategory['key'], id: string) {
-  return getLesson1ThemeItemLabel(theme, categoryKey, id)
 }
 
 export function getThemeItemLabels(theme: Lesson1ThemePack): Record<string, string> {
@@ -59,7 +62,6 @@ export function getThemeItemLabels(theme: Lesson1ThemePack): Record<string, stri
 export function getThemeItemMotifs(theme: Lesson1ThemePack) {
   return getLesson1ThemeItemMotifs(getLesson1ThemeVisual(theme), theme.itemStyles, getLesson1ThemeItemLabels(theme))
 }
-
 
 export function lesson1ThemeStyle(theme: Lesson1ThemePack): CSSProperties {
   const visual = getLesson1ThemeVisual(theme)

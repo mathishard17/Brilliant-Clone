@@ -76,13 +76,13 @@ function getLesson1HubDisplay(theme: Lesson1ThemePack) {
         : toTitleCase(copy.lookNamePlural)
 
   return {
-    title: `Lesson 1: ${outfitTitle}`,
+    title: outfitTitle,
     emoji: getLesson1HubEmoji(theme),
     description: `Count combinations with ${formatCategoryList(theme)}`,
   }
 }
 
-export function getThemeHubWords(theme: Lesson1ThemePack, preference: ThemePreference) {
+function getThemeHubWords(theme: Lesson1ThemePack, preference: ThemePreference) {
   const themeName = theme.themeName.toLowerCase()
   const categories = theme.categories.map((category) => category.label)
   const copy = getLesson1ThemeCopy(theme)
@@ -204,7 +204,7 @@ export function getThemedLessonDisplay(
 
   if (lesson.id === LESSON_2_ID) {
     return {
-      title: `Lesson 2: ${words.lineup}`,
+      title: words.lineup,
       emoji: emojis[1] ?? words.emoji,
       description: `Arrange ${words.orderItems} and discover factorials`,
     }
@@ -212,7 +212,7 @@ export function getThemedLessonDisplay(
 
   if (lesson.id === LESSON_3_ID) {
     return {
-      title: `Lesson 3: ${words.choose}`,
+      title: words.choose,
       emoji: emojis[2] ?? words.emoji,
       description: `Choose ${words.chooseItems} when order does not matter`,
     }
@@ -220,7 +220,7 @@ export function getThemedLessonDisplay(
 
   if (lesson.id === LESSON_4_ID) {
     return {
-      title: `Lesson 4: ${words.chance}`,
+      title: words.chance,
       emoji: emojis[3] ?? words.emoji,
       description: `Count winning spaces to discover chance`,
     }
@@ -228,7 +228,7 @@ export function getThemedLessonDisplay(
 
   if (lesson.id === LESSON_5_ID) {
     return {
-      title: `Lesson 5: ${words.fair}`,
+      title: words.fair,
       emoji: emojis[4] ?? words.emoji,
       description: `List sample spaces and check fair ${words.gameWorld}`,
     }

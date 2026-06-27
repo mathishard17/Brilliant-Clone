@@ -24,6 +24,12 @@ function ColoredHeartIcon({
   return <ColoredHeart color={color} shape={shape} className="closet__heart" />
 }
 
+function defaultMotifShape(categoryKey: string): NonNullable<ClosetItemStyle['motifShape']> {
+  if (categoryKey === 'crowns') return 'star'
+  if (categoryKey === 'dresses') return 'heart'
+  return 'circle'
+}
+
 export const Closet = memo(function Closet({ categories, selected, onSelect }: ClosetProps) {
   const [tappedId, setTappedId] = useState<string | null>(null)
 
@@ -49,6 +55,9 @@ export const Closet = memo(function Closet({ categories, selected, onSelect }: C
                 '--item-border': style.border,
               } as CSSProperties
 
+              const motifColor = style.heartColor ?? style.border
+              const motifShape = style.motifShape ?? defaultMotifShape(category.key)
+
               return (
                 <button
                   key={item.id}
@@ -59,9 +68,7 @@ export const Closet = memo(function Closet({ categories, selected, onSelect }: C
                   aria-label={`Select ${item.label}`}
                   aria-pressed={isSelected}
                 >
-                  {style.heartColor && (
-                    <ColoredHeartIcon color={style.heartColor} shape={style.motifShape} />
-                  )}
+                  <ColoredHeartIcon color={motifColor} shape={motifShape} />
                   <span className="closet__item-label">{item.label}</span>
                 </button>
               )

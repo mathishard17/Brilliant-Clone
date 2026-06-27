@@ -34,10 +34,13 @@ const SIGNED_URL_TTL_MS = 60 * 60 * 1000
 
 const THEME_PREFERENCES = ['royal', 'space', 'dinosaurs', 'animals', 'sports', 'surprise']
 const OPENAI_THEME_MODEL = process.env.OPENAI_THEME_MODEL || 'gpt-4.1-mini'
+const OPENAI_NODE_SUMMARY_MODEL = process.env.OPENAI_NODE_SUMMARY_MODEL || OPENAI_THEME_MODEL
+const OPENAI_HINT_MODEL = process.env.OPENAI_HINT_MODEL || OPENAI_THEME_MODEL
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 const MAX_TEXT_LENGTH = 220
 const MAX_COPY_LENGTH = 360
 const MAX_VOICE_SCRIPT_LENGTH = 180
+const NODE_MASTERY_STATUSES = ['locked', 'available', 'inProgress', 'mastered']
 const THEME_MOTIF_SHAPES = ['heart', 'circle', 'square', 'star', 'diamond', 'triangle', 'paw']
 const LESSON_4_SPINNER_ICON_KEYS = ['crown', 'ruby', 'gown', 'dragon', 'star', 'sparkle']
 const THEME_ITEM_STYLE_KEYS = [
@@ -54,6 +57,31 @@ const CHARACTER_HEADS = ['hair', 'helmet', 'cap', 'dinoHood', 'animalEars', 'che
 const CHARACTER_TORSOS = ['dress', 'spaceSuit', 'jacketAndPants', 'jersey', 'apron', 'overalls', 'smock']
 const CHARACTER_FEET = ['slippers', 'boots', 'sneakers']
 const CHARACTER_STAGES = ['royal', 'space', 'digSite', 'rescue', 'sports', 'studio', 'garden', 'kitchen']
+const WARDROBE_ASSET_PACK_IDS = ['royal', 'space', 'digSite', 'rescue', 'sports', 'studio']
+const WARDROBE_ASSET_KEYS = [
+  'royal-gold-tiara',
+  'royal-diamond-crown',
+  'royal-pink-gown',
+  'royal-purple-dress',
+  'royal-emerald-gown',
+  'royal-glass-slippers',
+  'royal-riding-boots',
+  'space-helmet',
+  'space-suit',
+  'space-boots',
+  'explorer-hat',
+  'explorer-outfit',
+  'trail-boots',
+  'rescue-cap',
+  'rescue-outfit',
+  'rescue-shoes',
+  'sports-cap',
+  'sports-jersey',
+  'sports-sneakers',
+  'studio-topper',
+  'studio-fit',
+  'studio-shoes',
+]
 const BLOCKED_HINT_TERMS = [
   'answer is',
   'equals',
@@ -110,6 +138,7 @@ const FALLBACK_THEME_PACK = {
       torso: 'smock',
       feet: 'sneakers',
       stage: 'studio',
+      assetPack: 'studio',
     },
     screenBackground: '#fdf4ff',
     panelBackground: '#fae8ff',
@@ -268,12 +297,14 @@ function isValidVisual(value) {
         CHARACTER_HEADS.includes(String(characterConfig.head)) &&
         CHARACTER_TORSOS.includes(String(characterConfig.torso)) &&
         CHARACTER_FEET.includes(String(characterConfig.feet)) &&
-        CHARACTER_STAGES.includes(String(characterConfig.stage)),
+        CHARACTER_STAGES.includes(String(characterConfig.stage)) &&
+        (characterConfig.assetPack === undefined || WARDROBE_ASSET_PACK_IDS.includes(String(characterConfig.assetPack))),
     )
 
   return Boolean(
     (value.character === 'princess' || value.character === 'astronaut') &&
       characterValid &&
+      (value.assetPack === undefined || WARDROBE_ASSET_PACK_IDS.includes(String(value.assetPack))) &&
       isHexColor(value.screenBackground) &&
       isHexColor(value.panelBackground) &&
       isHexColor(value.borderColor) &&
@@ -346,7 +377,9 @@ function isValidItemStyleMap(value) {
         isHexColor(style.text) &&
         isHexColor(style.border) &&
         isOptionalHexColor(style.heartColor) &&
-        (style.motifShape === undefined || THEME_MOTIF_SHAPES.includes(String(style.motifShape))),
+        (style.motifShape === undefined || THEME_MOTIF_SHAPES.includes(String(style.motifShape))) &&
+        (style.assetKey === undefined || WARDROBE_ASSET_KEYS.includes(String(style.assetKey))) &&
+        (style.icon === undefined || isValidEmojiString(style.icon)),
     )
   })
 }
@@ -361,6 +394,8 @@ function sanitizeItemStyleMap(value) {
     if (!isHexColor(style.background) || !isHexColor(style.text) || !isHexColor(style.border)) continue
     if (!isOptionalHexColor(style.heartColor)) continue
     if (style.motifShape !== undefined && !THEME_MOTIF_SHAPES.includes(String(style.motifShape))) continue
+    if (style.assetKey !== undefined && !WARDROBE_ASSET_KEYS.includes(String(style.assetKey))) continue
+    if (style.icon !== undefined && !isValidEmojiString(style.icon)) continue
 
     sanitized[itemId] = {
       background: style.background,
@@ -368,6 +403,8 @@ function sanitizeItemStyleMap(value) {
       border: style.border,
       ...(style.heartColor === undefined ? {} : { heartColor: style.heartColor }),
       ...(style.motifShape === undefined ? {} : { motifShape: style.motifShape }),
+      ...(style.assetKey === undefined ? {} : { assetKey: style.assetKey }),
+      ...(style.icon === undefined ? {} : { icon: style.icon }),
     }
   }
 
@@ -645,6 +682,8 @@ For voice scripts, avoid number words such as one, two, three, four, five, six, 
 Use theme words throughout lesson headings, category labels, item names, feedback, visual colors, motif, and voice scripts.
 Choose clothing/item colors that match the theme and item labels. For example, an animal helper "Fox Vest" should use fox-like orange/brown colors, not pink princess colors.
 Choose six Lesson Four spinner emojis that match the generated theme and the generated category items.
+For visual assets, choose only from approved local asset packs: royal, space, digSite, rescue, sports, studio. Do not invent URLs or filenames.
+Optional itemStyles.assetKey values must come only from approved local keys: ${WARDROBE_ASSET_KEYS.join(', ')}.
 The visual object may include extra hex color fields for UI states: textColor, mutedTextColor, errorBackground, errorText, errorBorder, statusBackground, statusText, statusBorder, warningBackground, warningText, warningBorder, selectedBackground, selectedText, selectedBorder, selectedRing, disabledBackground, disabledText, disabledBorder, inputBackground, inputText, inputBorder, focusRing, diagramBackground, diagramText, diagramConnector, equationAccent, spinnerRim, spinnerPointer, spinnerHubBackground, spinnerHubText, spinnerSeparator, meterTrack, neutralBackground, neutralText, and neutralBorder.
 
 Required JSON shape:
@@ -659,7 +698,8 @@ Required JSON shape:
       "head": "hair, helmet, cap, dinoHood, animalEars, chefHat, sunHat, or beret",
       "torso": "dress, spaceSuit, jacketAndPants, jersey, apron, overalls, or smock",
       "feet": "slippers, boots, or sneakers",
-      "stage": "royal, space, digSite, rescue, sports, studio, garden, or kitchen"
+      "stage": "royal, space, digSite, rescue, sports, studio, garden, or kitchen",
+      "assetPack": "royal, space, digSite, rescue, sports, or studio"
     },
     "screenBackground": "#ffffff",
     "panelBackground": "#faf5ff",
@@ -841,6 +881,356 @@ async function requestOpenAITheme({ apiKey, prompt }) {
   if (!response.ok) {
     const message = await response.text()
     throw new Error(`OpenAI request failed (${response.status}): ${message}`)
+  }
+
+  const result = await response.json()
+  return JSON.parse(extractOpenAIText(result))
+}
+
+function sanitizeSummaryText(value, maxLength) {
+  if (typeof value !== 'string') return ''
+  return value.trim().slice(0, maxLength)
+}
+
+function sanitizeNodeSummaryRequest(data) {
+  const node = data && typeof data.node === 'object' && !Array.isArray(data.node) ? data.node : {}
+  const status = NODE_MASTERY_STATUSES.includes(data?.status) ? data.status : 'locked'
+  const progressRatio = Number(data?.progressRatio)
+  const contextsTried = Array.isArray(data?.contextsTried)
+    ? data.contextsTried
+        .filter((context) => typeof context === 'string' && context.trim().length > 0)
+        .slice(0, 5)
+        .map((context) => context.trim().slice(0, 60))
+    : []
+
+  return {
+    node: {
+      id: sanitizeSummaryText(node.id, 80),
+      label: sanitizeSummaryText(node.label, 80),
+      skill: sanitizeSummaryText(node.skill, 180),
+      description: sanitizeSummaryText(node.description, 220),
+    },
+    status,
+    progressRatio: Number.isFinite(progressRatio) ? Math.min(Math.max(progressRatio, 0), 1) : 0,
+    contextsTried,
+    lessonTitle: sanitizeSummaryText(data?.lessonTitle, 100),
+    available: data?.available === true,
+    activeThemeLabel: sanitizeSummaryText(data?.activeThemeLabel, 80),
+    schemaLabel: sanitizeSummaryText(data?.schemaLabel, 100),
+  }
+}
+
+function buildFallbackNodeSummary(request) {
+  const progressPercent = Math.round(request.progressRatio * 100)
+  const contextCopy =
+    request.contextsTried.length > 0
+      ? `You have tried this in ${request.contextsTried.join(', ')}.`
+      : 'This node is ready for its first try.'
+
+  if (request.status === 'mastered') {
+    return {
+      title: `${request.node.label} glow check`,
+      currentUnderstanding: `You have a strong glow here: ${request.node.skill} ${contextCopy}`,
+      nextPractice: `Try a new story problem that uses ${request.node.label.toLowerCase()} so the idea stays flexible.`,
+      encouragement: 'You can use this skill in new worlds.',
+    }
+  }
+
+  if (request.status === 'inProgress') {
+    return {
+      title: `${request.node.label} progress check`,
+      currentUnderstanding: `You have started this node and are about ${progressPercent}% through. ${contextCopy}`,
+      nextPractice: `Practice the next step in ${request.lessonTitle}: ${request.node.skill}`,
+      encouragement: 'A little more practice will brighten this node.',
+    }
+  }
+
+  if (!request.available || request.status === 'locked') {
+    return {
+      title: `${request.node.label} preview`,
+      currentUnderstanding: `This node is waiting until nearby skills are brighter. It will help with: ${request.node.skill}`,
+      nextPractice: 'Practice the open nodes connected to this one, then come back when it unlocks.',
+      encouragement: 'Every bright node makes the network easier to explore.',
+    }
+  }
+
+  return {
+    title: `${request.node.label} ready check`,
+    currentUnderstanding: `This node is ready to start. It focuses on: ${request.node.skill}`,
+    nextPractice: `Open ${request.lessonTitle} and try one careful example before speeding up.`,
+    encouragement: 'Start small and watch the node light up.',
+  }
+}
+
+function buildKnowledgeNodeSummaryPrompt(request) {
+  const progressPercent = Math.round(request.progressRatio * 100)
+  const contexts = request.contextsTried.length > 0 ? request.contextsTried.join(', ') : 'none yet'
+  const activeTheme = request.activeThemeLabel || 'not provided'
+  const schema = request.schemaLabel || 'not provided'
+
+  return `Create a kid-friendly knowledge graph node summary for a 3rd-grade math learner.
+
+Ground the summary only in this local app data:
+- Node label: ${request.node.label}
+- Node skill: ${request.node.skill}
+- Node description: ${request.node.description}
+- Schema: ${schema}
+- Status: ${request.status}
+- Progress ratio: ${request.progressRatio} (${progressPercent}%)
+- Contexts tried: ${contexts}
+- Lesson title: ${request.lessonTitle}
+- Availability: ${request.available ? 'available/openable' : 'not available yet'}
+- Active theme label: ${activeTheme}
+
+Rules:
+- Be warm, specific, and simple enough for a kid.
+- Say what the learner currently knows or is ready for based on status and progress.
+- Suggest exactly one useful next practice move.
+- Do not claim they mastered, attempted, or saw content that is not in the data.
+- Return JSON only. Do not use Markdown.
+
+Use this exact JSON shape:
+{
+  "title": "short friendly title",
+  "currentUnderstanding": "one or two short sentences about what the learner knows or is ready for",
+  "nextPractice": "one short next practice suggestion",
+  "encouragement": "one short confidence sentence"
+}`
+}
+
+function sanitizeNodeSummary(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const summary = {
+    title: sanitizeSummaryText(value.title, 80),
+    currentUnderstanding: sanitizeSummaryText(value.currentUnderstanding, 240),
+    nextPractice: sanitizeSummaryText(value.nextPractice, 220),
+    encouragement: sanitizeSummaryText(value.encouragement, 160),
+  }
+
+  if (!isString(summary.title, 80)) return undefined
+  if (!isString(summary.currentUnderstanding, 240)) return undefined
+  if (!isString(summary.nextPractice, 220)) return undefined
+  if (!isString(summary.encouragement, 160)) return undefined
+  return summary
+}
+
+async function generateNodeSummaryWithOpenAI({ apiKey, request }) {
+  const response = await fetch(OPENAI_RESPONSES_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: OPENAI_NODE_SUMMARY_MODEL,
+      input: [
+        {
+          role: 'system',
+          content:
+            'You generate safe JSON-only progress summaries for a children math learning app. Stay grounded in the provided local app data and do not invent progress.',
+        },
+        {
+          role: 'user',
+          content: buildKnowledgeNodeSummaryPrompt(request),
+        },
+      ],
+      text: {
+        format: {
+          type: 'json_object',
+        },
+      },
+      temperature: 0.35,
+      max_output_tokens: 650,
+    }),
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(`OpenAI node summary request failed (${response.status}): ${message}`)
+  }
+
+  const result = await response.json()
+  return JSON.parse(extractOpenAIText(result))
+}
+
+function sanitizeHintString(value, maxLength) {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : ''
+}
+
+function sanitizeHintStringList(value, maxItems, maxLength) {
+  return Array.isArray(value)
+    ? value
+        .filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+        .slice(0, maxItems)
+        .map((entry) => entry.trim().slice(0, maxLength))
+    : []
+}
+
+function sanitizeHintMemory(value) {
+  const memory = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  const currentConcept =
+    memory.currentConcept && typeof memory.currentConcept === 'object' && !Array.isArray(memory.currentConcept)
+      ? memory.currentConcept
+      : undefined
+
+  return {
+    totalAttempts: Number.isFinite(Number(memory.totalAttempts)) ? Math.max(0, Math.floor(Number(memory.totalAttempts))) : 0,
+    correctAttempts: Number.isFinite(Number(memory.correctAttempts)) ? Math.max(0, Math.floor(Number(memory.correctAttempts))) : 0,
+    incorrectAttempts: Number.isFinite(Number(memory.incorrectAttempts)) ? Math.max(0, Math.floor(Number(memory.incorrectAttempts))) : 0,
+    hintsRequested: Number.isFinite(Number(memory.hintsRequested)) ? Math.max(0, Math.floor(Number(memory.hintsRequested))) : 0,
+    currentStreak: Number.isFinite(Number(memory.currentStreak)) ? Math.max(0, Math.floor(Number(memory.currentStreak))) : 0,
+    strengths: sanitizeHintStringList(memory.strengths, 4, 80),
+    growthAreas: sanitizeHintStringList(memory.growthAreas, 4, 80),
+    currentConcept: currentConcept
+      ? {
+          label: sanitizeHintString(currentConcept.label, 80),
+          attempts: Number.isFinite(Number(currentConcept.attempts)) ? Math.max(0, Math.floor(Number(currentConcept.attempts))) : 0,
+          correct: Number.isFinite(Number(currentConcept.correct)) ? Math.max(0, Math.floor(Number(currentConcept.correct))) : 0,
+          incorrect: Number.isFinite(Number(currentConcept.incorrect)) ? Math.max(0, Math.floor(Number(currentConcept.incorrect))) : 0,
+          hintsRequested: Number.isFinite(Number(currentConcept.hintsRequested)) ? Math.max(0, Math.floor(Number(currentConcept.hintsRequested))) : 0,
+          lastOutcome: ['correct', 'incorrect'].includes(currentConcept.lastOutcome) ? currentConcept.lastOutcome : '',
+          lastMisconception: sanitizeHintString(currentConcept.lastMisconception, 120),
+        }
+      : undefined,
+  }
+}
+
+function sanitizeHintRequest(data) {
+  const wrongAttempts = Number(data?.wrongAttempts)
+  return {
+    lessonId: sanitizeHintString(data?.lessonId, 120),
+    conceptKey: sanitizeHintString(data?.conceptKey, 80),
+    conceptLabel: sanitizeHintString(data?.conceptLabel, 80),
+    prompt: sanitizeHintString(data?.prompt, 360),
+    context: sanitizeHintString(data?.context, 520),
+    fallbackHint: sanitizeHintString(data?.fallbackHint, 180),
+    blockedAnswerTerms: [
+      ...BLOCKED_HINT_TERMS,
+      ...sanitizeHintStringList(data?.blockedAnswerTerms, 12, 40),
+    ],
+    learnerAnswer: sanitizeHintString(data?.learnerAnswer, 40),
+    attemptedAnswers: sanitizeHintStringList(data?.attemptedAnswers, 6, 40),
+    wrongAttempts: Number.isFinite(wrongAttempts) ? Math.max(0, Math.floor(wrongAttempts)) : 0,
+    studentMemory: sanitizeHintMemory(data?.studentMemory),
+  }
+}
+
+function buildFallbackHint(request) {
+  if (isSafeHintText(request.fallbackHint, request.blockedAnswerTerms)) return request.fallbackHint
+  return `Try locking one choice first, then list what can change next.`
+}
+
+function isSafeHintText(hint, blockedTerms) {
+  if (!isString(hint, 180)) return false
+  if (DIGIT_OR_EQUATION_PATTERN.test(hint)) return false
+  if (EARLY_REVEAL_PATTERN.test(hint)) return false
+  const normalizedHint = hint.toLowerCase()
+  return !blockedTerms.some((term) => {
+    const normalizedTerm = term.trim().toLowerCase()
+    return normalizedTerm.length > 0 && normalizedHint.includes(normalizedTerm)
+  })
+}
+
+function sanitizeAiHint(value, blockedTerms) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const hint = sanitizeHintString(value.hint, 180)
+  const misconception = sanitizeHintString(value.misconception, 120)
+  if (!isSafeHintText(hint, blockedTerms)) return undefined
+  return {
+    hint,
+    misconception,
+  }
+}
+
+function buildAiHintPrompt(request) {
+  const memory = request.studentMemory
+  const currentConcept = memory.currentConcept
+    ? `Current concept memory: ${memory.currentConcept.label}; attempts ${memory.currentConcept.attempts}; correct ${memory.currentConcept.correct}; incorrect ${memory.currentConcept.incorrect}; hints requested ${memory.currentConcept.hintsRequested}; last outcome ${memory.currentConcept.lastOutcome || 'none'}; last misconception ${memory.currentConcept.lastMisconception || 'none'}.`
+    : 'Current concept memory: none yet.'
+  const strengths = memory.strengths.length > 0 ? memory.strengths.join(', ') : 'none yet'
+  const growthAreas = memory.growthAreas.length > 0 ? memory.growthAreas.join(', ') : 'none yet'
+  const blocked = request.blockedAnswerTerms.join(', ')
+  const attempts = request.attemptedAnswers.length > 0 ? request.attemptedAnswers.join(', ') : 'none yet'
+  const learnerAnswer = request.learnerAnswer || 'not provided'
+
+  return `Create one adaptive mistake-aware hint for a 3rd-grade math learner.
+
+Problem prompt:
+${request.prompt}
+
+Lesson context:
+${request.context}
+
+Student memory:
+- Total attempts: ${memory.totalAttempts}
+- Correct attempts: ${memory.correctAttempts}
+- Incorrect attempts: ${memory.incorrectAttempts}
+- Hints requested: ${memory.hintsRequested}
+- Current streak: ${memory.currentStreak}
+- Strengths: ${strengths}
+- Growth areas: ${growthAreas}
+- ${currentConcept}
+- Current typed answer: ${learnerAnswer}
+- Recent attempted answers: ${attempts}
+- Wrong attempts on this question: ${request.wrongAttempts}
+
+Before writing the hint:
+- Look at the current typed answer and recent attempted answers.
+- If the learner likely made a small slip, target that slip first.
+- Common slips include counting one category twice, forgetting a category, adding instead of multiplying, treating order incorrectly, or not checking every branch/outcome.
+- If the typed answer does not suggest a clear slip, give a normal strategy hint.
+
+Rules:
+- Prefer a targeted "check your work" nudge based on the learner's answer over a generic hint.
+- Give a Socratic hint, not a solution.
+- Do not reveal the final answer.
+- Do not include any of these answer terms: ${blocked}.
+- Do not include equations, mathematical symbols, or numeric digits.
+- Keep the hint under 25 words.
+- The hint may mention the likely mistake pattern, but must not say whether the typed answer is close, high, low, correct, or incorrect.
+- The misconception should name the likely slip; use an empty string if unsure.
+- Return JSON only. Do not use Markdown.
+
+Use this exact JSON shape:
+{
+  "hint": "one short hint",
+  "misconception": "short likely misconception or empty string"
+}`
+}
+
+async function generateHintWithOpenAI({ apiKey, request }) {
+  const response = await fetch(OPENAI_RESPONSES_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: OPENAI_HINT_MODEL,
+      input: [
+        {
+          role: 'system',
+          content:
+            'You generate safe JSON-only mistake-aware coaching hints for a children math learning app. Use the learner answer to target likely slips, but never reveal answers.',
+        },
+        {
+          role: 'user',
+          content: buildAiHintPrompt(request),
+        },
+      ],
+      text: {
+        format: {
+          type: 'json_object',
+        },
+      },
+      temperature: 0.25,
+      max_output_tokens: 260,
+    }),
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(`OpenAI hint request failed (${response.status}): ${message}`)
   }
 
   const result = await response.json()
@@ -1176,6 +1566,139 @@ exports.generateCustomTheme = onCall(
       return {
         source: 'fallback',
         themePack: FALLBACK_THEME_PACK,
+      }
+    }
+  },
+)
+
+exports.generateKnowledgeNodeSummary = onCall(
+  {
+    region: 'us-central1',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in before generating node summaries.')
+    }
+
+    const summaryRequest = sanitizeNodeSummaryRequest(request.data || {})
+    if (!summaryRequest.node.id || !summaryRequest.node.label || !summaryRequest.node.skill) {
+      throw new HttpsError('invalid-argument', 'Node label and skill are required.')
+    }
+
+    const fallbackSummary = buildFallbackNodeSummary(summaryRequest)
+    const apiKey = process.env.OPENAI_API_KEY || process.env.openai_api_key
+
+    if (!apiKey) {
+      logger.warn('OPENAI_API_KEY is not configured; returning fallback node summary.', {
+        nodeId: summaryRequest.node.id,
+      })
+      return {
+        source: 'fallback',
+        summary: fallbackSummary,
+      }
+    }
+
+    try {
+      const rawSummary = await generateNodeSummaryWithOpenAI({
+        apiKey,
+        request: summaryRequest,
+      })
+      const summary = sanitizeNodeSummary(rawSummary)
+
+      if (!summary) {
+        logger.warn('OpenAI returned an invalid node summary; returning fallback.', {
+          nodeId: summaryRequest.node.id,
+        })
+        return {
+          source: 'fallback',
+          summary: fallbackSummary,
+        }
+      }
+
+      return {
+        source: 'generated',
+        summary,
+      }
+    } catch (error) {
+      logger.error('OpenAI node summary generation failed; returning fallback summary.', {
+        nodeId: summaryRequest.node.id,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      })
+      return {
+        source: 'fallback',
+        summary: fallbackSummary,
+      }
+    }
+  },
+)
+
+exports.generateAiHint = onCall(
+  {
+    region: 'us-central1',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in before asking the AI Hint Coach.')
+    }
+
+    const hintRequest = sanitizeHintRequest(request.data || {})
+    if (!hintRequest.lessonId || !hintRequest.conceptKey || !hintRequest.prompt || !hintRequest.context) {
+      throw new HttpsError('invalid-argument', 'Hint prompt, concept, and context are required.')
+    }
+
+    const fallbackHint = buildFallbackHint(hintRequest)
+    const apiKey = process.env.OPENAI_API_KEY || process.env.openai_api_key
+
+    if (!apiKey) {
+      logger.warn('OPENAI_API_KEY is not configured; returning fallback hint.', {
+        lessonId: hintRequest.lessonId,
+        conceptKey: hintRequest.conceptKey,
+      })
+      return {
+        source: 'fallback',
+        hint: fallbackHint,
+        misconception: '',
+      }
+    }
+
+    try {
+      const rawHint = await generateHintWithOpenAI({
+        apiKey,
+        request: hintRequest,
+      })
+      const hint = sanitizeAiHint(rawHint, hintRequest.blockedAnswerTerms)
+
+      if (!hint) {
+        logger.warn('OpenAI returned an unsafe hint; returning fallback.', {
+          lessonId: hintRequest.lessonId,
+          conceptKey: hintRequest.conceptKey,
+        })
+        return {
+          source: 'fallback',
+          hint: fallbackHint,
+          misconception: '',
+        }
+      }
+
+      return {
+        source: 'generated',
+        hint: hint.hint,
+        misconception: hint.misconception,
+      }
+    } catch (error) {
+      logger.error('OpenAI hint generation failed; returning fallback hint.', {
+        lessonId: hintRequest.lessonId,
+        conceptKey: hintRequest.conceptKey,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      })
+      return {
+        source: 'fallback',
+        hint: fallbackHint,
+        misconception: '',
       }
     }
   },

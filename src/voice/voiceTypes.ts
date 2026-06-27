@@ -28,10 +28,18 @@ export interface LessonVoiceClip {
   caption: string
 }
 
+export interface VoiceFeedbackContext {
+  outcome: 'correct' | 'tryAgain'
+  message: string
+  nonce: string
+}
+
 export interface VoiceClipRequest {
   lessonId: string
   clipKey: string
   themePreference: ThemePreference
+  cacheBust?: string
+  feedbackContext?: VoiceFeedbackContext
 }
 
 export interface VoiceClipResponse {
@@ -39,6 +47,7 @@ export interface VoiceClipResponse {
   audioUrl?: string
   caption: string
   scriptHash: string
+  debugError?: string
 }
 
 export interface VoiceValidationResult {

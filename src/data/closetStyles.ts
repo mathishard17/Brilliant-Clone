@@ -7,6 +7,9 @@ export interface ClosetItemStyle {
   /** Colored heart for dress options */
   heartColor?: string
   motifShape?: 'heart' | 'circle' | 'square' | 'star' | 'diamond' | 'triangle' | 'paw'
+  /** Optional approved local visual asset key. Never a URL. */
+  assetKey?: string
+  icon?: string
 }
 
 export const CLOSET_ITEM_STYLES: Record<string, ClosetItemStyle> = {
@@ -15,12 +18,16 @@ export const CLOSET_ITEM_STYLES: Record<string, ClosetItemStyle> = {
     background: '#fef9c3',
     text: '#854d0e',
     border: '#facc15',
+    heartColor: '#eab308',
+    motifShape: 'star',
   },
   'diamond-crown': {
     label: 'Diamond Crown',
     background: '#e0f2fe',
     text: '#0369a1',
     border: '#38bdf8',
+    heartColor: '#0ea5e9',
+    motifShape: 'star',
   },
   'pink-gown': {
     label: 'Pink Ballgown',
@@ -28,6 +35,7 @@ export const CLOSET_ITEM_STYLES: Record<string, ClosetItemStyle> = {
     text: '#be185d',
     border: '#f472b6',
     heartColor: '#ec4899',
+    motifShape: 'heart',
   },
   'purple-dress': {
     label: 'Purple Dress',
@@ -35,6 +43,7 @@ export const CLOSET_ITEM_STYLES: Record<string, ClosetItemStyle> = {
     text: '#6b21a8',
     border: '#a855f7',
     heartColor: '#9333ea',
+    motifShape: 'heart',
   },
   'emerald-gown': {
     label: 'Emerald Gown',
@@ -42,18 +51,23 @@ export const CLOSET_ITEM_STYLES: Record<string, ClosetItemStyle> = {
     text: '#065f46',
     border: '#34d399',
     heartColor: '#10b981',
+    motifShape: 'heart',
   },
   'glass-slippers': {
     label: 'Glass Slippers',
     background: '#f0f9ff',
     text: '#0c4a6e',
     border: '#7dd3fc',
+    heartColor: '#38bdf8',
+    motifShape: 'circle',
   },
   'riding-boots': {
     label: 'Riding Boots',
     background: '#fef3c7',
     text: '#78350f',
     border: '#d97706',
+    heartColor: '#b45309',
+    motifShape: 'circle',
   },
 }
 
@@ -91,8 +105,6 @@ export const SHOE_FILL_COLORS: Record<string, ShoeFillColors> = {
     highlight: '#fde68a',
   },
 }
-
-export const HAIR_COLOR = '#fde047'
 
 /** Emojis shown in the outfit log (crowns & shoes). Dresses use colored hearts. */
 export const OUTFIT_LOG_EMOJI: Record<string, string> = {

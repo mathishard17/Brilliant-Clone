@@ -1,4 +1,4 @@
-import { createVoiceCacheKey, createVoiceFallbackResponse } from './voiceCache'
+import { createVoiceFallbackResponse } from './voiceCache'
 import { getVoiceClip } from './voiceClips'
 import { getThemeVoiceProfile } from './voiceProfiles'
 import type { Lesson1ThemePack } from '../themes/themeTypes'
@@ -14,7 +14,6 @@ import { validateLessonVoiceClip, validateThemeVoiceProfile } from './voiceValid
 export interface ResolvedVoiceClipRequest {
   clip: LessonVoiceClip
   profile: ThemeVoiceProfile
-  cacheKey: string
   fallbackResponse: VoiceClipResponse
 }
 
@@ -29,13 +28,6 @@ export function resolveVoiceClipRequest(
   return {
     clip,
     profile,
-    cacheKey: createVoiceCacheKey({
-      provider: profile.provider,
-      themePreference: profile.themePreference,
-      lessonId: clip.lessonId,
-      clipKey: clip.clipKey,
-      scriptHash: clip.scriptHash,
-    }),
     fallbackResponse: createVoiceFallbackResponse(clip),
   }
 }

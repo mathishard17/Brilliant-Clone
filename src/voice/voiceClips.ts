@@ -4,7 +4,7 @@ import { createVoiceScriptHash } from './voiceCache'
 import type { LessonVoiceClip, VoiceRevealPolicy } from './voiceTypes'
 import { validateLessonVoiceClip } from './voiceValidation'
 
-export type VoiceClipKey =
+type VoiceClipKey =
   | 'lesson1.screen1.welcome'
   | 'lesson1.screen2.anchorIntro'
   | 'lesson1.screen3.shoesIntro'
@@ -59,7 +59,7 @@ export const VOICE_CLIPS: Record<VoiceClipKey, LessonVoiceClip> = {
     lessonId: LESSON_1_ID,
     clipKey: 'lesson1.screen1.welcome',
     revealPolicy: 'safeBeforeAnswer',
-    text: 'Welcome! Tap the choices and build every unique look you can find.',
+    text: 'Welcome! Tap the choices and build every unique outfit you can find.',
   }),
   'lesson1.screen2.anchorIntro': createLessonVoiceClip({
     lessonId: LESSON_1_ID,
@@ -71,7 +71,7 @@ export const VOICE_CLIPS: Record<VoiceClipKey, LessonVoiceClip> = {
     lessonId: LESSON_1_ID,
     clipKey: 'lesson1.screen3.shoesIntro',
     revealPolicy: 'safeBeforeAnswer',
-    text: 'Add the last category and watch how each finished look can change.',
+    text: 'Add the last category and watch how each finished outfit can change.',
   }),
   'lesson1.screen4.shortcutIntro': createLessonVoiceClip({
     lessonId: LESSON_1_ID,
@@ -83,7 +83,7 @@ export const VOICE_CLIPS: Record<VoiceClipKey, LessonVoiceClip> = {
     lessonId: LESSON_1_ID,
     clipKey: 'lesson1.screen3.tryAgain',
     revealPolicy: 'safeBeforeAnswer',
-    text: 'Try building the looks before answering, then count what changed.',
+    text: 'Try building the outfits before answering, then count what changed.',
   }),
   'lesson1.screen4.complete': createLessonVoiceClip({
     lessonId: LESSON_1_ID,
@@ -211,7 +211,7 @@ function isVoiceClipKey(clipKey: string): clipKey is VoiceClipKey {
   return Object.hasOwn(VOICE_CLIPS, clipKey)
 }
 
-export function createThemedVoiceClip(
+function createThemedVoiceClip(
   baseClip: LessonVoiceClip,
   script: ThemeVoiceScript,
 ): LessonVoiceClip {
@@ -237,8 +237,4 @@ export function getVoiceClip(clipKey: string, themePack?: Lesson1ThemePack | nul
 
   const themedClip = createThemedVoiceClip(baseClip, themedScript)
   return validateLessonVoiceClip(themedClip).valid ? themedClip : baseClip
-}
-
-export function getLessonVoiceClips(lessonId: string): LessonVoiceClip[] {
-  return Object.values(VOICE_CLIPS).filter((clip) => clip.lessonId === lessonId)
 }

@@ -27,17 +27,19 @@ count choices → order objects → choose groups → count chance → check fai
 - Per-lesson progress bars, resume, reset, and completion badges.
 - Firestore progress stored per lesson in `users/{uid}.lessons`.
 - Meaningful section state persists for newer lessons: challenge answers, solved gates, page indices, and key visual work.
+- Home Hub includes a black neon Knowledge Graph for Lessons 1-10; current nodes derive their status from lesson progress and future nodes stay locked.
+- Node Feedback is available only for in-progress, completed, and mastered graph nodes, and refreshes automatically when the learner's progress state changes.
 - Interactive visuals: closets, jewel slots, treasure bags, spinners, sorting cards.
 - Two-stage wrong-answer feedback and duplicate-answer blocking.
 - Lesson 1 can render from validated theme packs, with manual fallbacks for every theme preference.
-- Firebase AI Logic theme generation code can create, validate, cache, and safely fall back for Lesson 1 themes.
+- Vercel API theme generation can create, validate, cache, and safely fall back for Lesson 1 themes.
 - Optional Lesson 1 hint buttons use safe AI JSON validation and local fallback hints.
 - Royal and Space themes now carry distinct colors, character visuals, and bounded copy slots.
 - Theme packs include button, feedback, and motif-shape tokens, with manual fallbacks for all signup theme options.
 - Lesson 1 character visuals use bounded theme character configs, so non-royal themes can render structured outfits like explorer jackets, helper outfits, jerseys, and smocks instead of only recoloring the original dress shape.
 - Lessons 2–5 have lesson-local theme bridges while shared per-lesson theme-pack contracts are still a future step.
 - Theme visuals now include broader UI state tokens for error, status, selected, disabled, input/focus, spinner, meter, diagram, and neutral surfaces.
-- Optional opt-in voice narration uses a Firebase callable Function as the server boundary for Cartesia-generated MP3s, with captions and fallback responses.
+- Optional opt-in voice narration uses a Vercel API route as the server boundary for Cartesia-generated MP3s, with captions and fallback responses.
 - Lightweight local UI sounds play on enabled buttons, with a separate completion tada for final lesson finish actions.
 - Mobile-first layout for phones, iPads, and desktop.
 - Project skills for curriculum work:
@@ -66,9 +68,9 @@ src/
   themes/          # theme contracts, fallbacks, validation, resolving, CSS variables
   types/           # lesson/user TypeScript models
   utils/           # progress normalization, sounds, retry, resume, rendering helpers
-  voice/           # voice clip catalog, cache keys, request validation
-functions/
-  index.js         # callable Functions for Cartesia voice and AI theme generation
+  voice/           # voice clip catalog, profiles, request validation
+api/
+  *.js             # Vercel-style server routes for OpenAI and Cartesia calls
 ```
 
 Important patterns:
@@ -77,7 +79,8 @@ Important patterns:
 - Keep student-facing text in lesson-local `copy.ts`.
 - Keep custom visuals lesson-local until a pattern repeats.
 - Keep AI personalization constrained: AI can change labels/flavor, but code owns counts, answers, section order, and validation.
-- Keep API keys server-side: the browser calls Firebase callable Functions, and Functions call Cartesia or AI providers.
+- Keep graph Feedback progress-aware: cached summaries are keyed by node, status, progress, tried contexts, lesson title, and theme.
+- Keep API keys server-side: the browser calls Vercel-style `/api` routes, and those routes call OpenAI or Cartesia.
 - Use theme CSS variables for UI state surfaces, not just main panels and buttons.
 - Use `review-lesson` before demos to catch answer leakage, weak gating, static visuals, and plan drift.
 
@@ -87,10 +90,10 @@ Firestore collections:
 
 | Collection | Purpose |
 | --- | --- |
-| `users/{uid}` | user profile, active lesson, theme preference/cache, `lessons` progress map, legacy `lesson` field |
+| `users/{uid}` | user profile, active lesson, theme preference/cache, `lessons` progress map |
 | `usernames/{username}` | username uniqueness lookup |
 
-Each lesson progress entry tracks `lessonId`, `currentScreen`, `lastLessonScreen`, `completed`, legacy screen state, and a flexible `sectionState` map for newer lesson interactions.
+Each lesson progress entry tracks `lessonId`, `currentScreen`, `lastLessonScreen`, `completed`, screen-specific state, and a flexible `sectionState` map for newer lesson interactions. The old top-level single-lesson `lesson` field is no longer read or written.
 
 Theme personalization stores a selected `themePreference` and optional cached `themePacks`. Generated packs are validated before rendering, and the deterministic fallback themes keep Lesson 1 usable if AI is unavailable.
 
@@ -108,21 +111,24 @@ Required Firebase values live in `.env` as `VITE_FIREBASE_*`. Optional:
 
 - `VITE_AUTH_EMAIL_DOMAIN`
 - `VITE_DEV_USERNAME`
-- `VITE_FIREBASE_AI_MODEL`
+- `OPENAI_API_KEY`
+- `OPENAI_THEME_MODEL`
+- `OPENAI_HINT_MODEL`
+- `OPENAI_NODE_SUMMARY_MODEL`
 - `CARTESIA_API`
 - `CARTESIA_MODEL_ID`
 - `CARTESIA_VERSION`
 - `CARTESIA_DEFAULT_VOICE_ID`
 
-Firebase AI Logic is only needed for generated Lesson 1 theme packs. Manual fallback themes work without an AI API.
+OpenAI-backed hints, graph Feedback summaries, generated theme packs, and Cartesia voice clips run through Vercel-style API routes in `api/`. Manual fallback themes, fallback hints, local progress-based Feedback, and voice captions work without server API keys.
 
-For local voice testing, run the Functions emulator:
+For local API testing with Vite, `npm run dev` serves the same `/api` routes through local middleware. You can also run a Vercel dev server:
 
 ```bash
-npx firebase emulators:start --only functions
+npx vercel dev
 ```
 
-In development, the web app connects callable Functions to `127.0.0.1:5001`. Cartesia is still a real external API call unless mocked; Storage is real unless the Storage emulator is also running.
+Voice audio uses `CARTESIA_API` and returns MP3 data URLs directly; it does not currently cache generated audio in Firebase Storage.
 
 ## Scripts
 
@@ -137,10 +143,11 @@ In development, the web app connects callable Functions to `127.0.0.1:5001`. Car
 
 ## Status Notes
 
-- Latest local lint/build passes.
+- Latest local build passes after the progress compatibility cleanup.
 - Vite still reports a large chunk warning.
-- AI-added roadmap status: Phases 1-12 are code-present for Lesson 1 manual themes/character presets; hub/login theming, shared theme-state tokens, and Lessons 2-5 local theme bridges are present. Firebase AI provisioning, manual theme validation, and manual hint/visual smoke testing are still needed before demo/deploy.
-- Voice status: opt-in voice UI, shared clip catalogs, Cartesia callable scaffold, captions, and local fallback behavior are present for Lessons 1-5. Production voice still needs emulator/deploy QA, Storage/cache confirmation, and final voice IDs.
+- AI-added roadmap status: Lesson 1 manual themes/character presets, hub/login theming, shared theme-state tokens, Lessons 2-5 local theme bridges, and Vercel API routes for OpenAI-backed features are present. Manual theme validation and hint/visual smoke testing are still needed before demo/deploy.
+- Voice status: opt-in voice UI, shared clip catalogs, Cartesia `/api/get-voice-clip`, captions, and local fallback behavior are present for Lessons 1-5. Production voice still needs deploy QA and final voice IDs.
+- Knowledge Graph status: graph navigation, status-derived nodes, reset/open actions, and progress-aware node Feedback are present locally; browser smoke testing and redeploy are still needed.
 - The live demo may lag local changes until redeployed.
 
 ## License

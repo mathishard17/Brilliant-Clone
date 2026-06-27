@@ -48,6 +48,7 @@ export interface ThemeItemStyle {
   border: string
   heartColor?: string
   motifShape?: ThemeMotifShape
+  icon?: string
 }
 
 export interface ThemeItemStyleMap {
@@ -72,6 +73,7 @@ export interface ThemeVoiceScriptMap {
 export interface Lesson1ThemeVisual {
   character: 'princess' | 'astronaut'
   characterConfig?: ThemeCharacterConfig
+  assetPack?: WardrobeAssetPackId
   screenBackground: string
   panelBackground: string
   borderColor: string
@@ -127,6 +129,7 @@ export interface Lesson1ThemeVisual {
 }
 
 export type ThemeMotifShape = 'heart' | 'circle' | 'square' | 'star' | 'diamond' | 'triangle' | 'paw'
+export type WardrobeAssetPackId = 'royal' | 'space' | 'digSite' | 'rescue' | 'sports' | 'studio'
 
 export type ThemeCharacterBase = 'human' | 'astronaut' | 'explorer' | 'mascot'
 export type ThemeCharacterHead = 'hair' | 'helmet' | 'cap' | 'dinoHood' | 'animalEars' | 'chefHat' | 'sunHat' | 'beret'
@@ -140,6 +143,7 @@ export interface ThemeCharacterConfig {
   torso: ThemeCharacterTorso
   feet: ThemeCharacterFeet
   stage: ThemeCharacterStage
+  assetPack?: WardrobeAssetPackId
 }
 
 export interface Lesson1ThemeCopy {

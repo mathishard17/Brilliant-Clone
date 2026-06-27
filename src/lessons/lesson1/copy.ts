@@ -15,22 +15,22 @@ export const screen1InteractiveChallenge: InteractiveChallengeContent = {
   id: 'princess-outfit-pairs',
   heading: '👑 Dress Up the Princess!',
   body: (princessName) =>
-    `Welcome, ${princessName}! Tap different items in the princess closet to change the princess's outfit. See how many **unique styles** you can design!`,
+    `Welcome, ${princessName}! Tap different items in the princess closet to change the princess's outfit. See how many **unique outfits** you can design!`,
   visualization: 'outfit-pairs',
   prompt:
-    'How many completely **unique princess looks** can you make in total? (An outfit is 1 crown and 1 dress)',
+    'How many completely **unique princess outfits** can you make in total? (An outfit is 1 crown and 1 dress)',
   answer: 6,
   feedback: {
     correct: (princessName) =>
-      `Magical, ${princessName}! You found all **6 combinations** perfectly. Let's look at the trick to see why that works.`,
+      `Magical, ${princessName}! **6 combinations** is exactly right. Let's look at the trick to see why that works.`,
     incorrect: (princessName) =>
       `Not quite, ${princessName}! Let's jump into a **secret palace trick** to see how to easily count them all without losing track.`,
     tryAgain: firstTryAgainFeedback,
-    solution: () => 'Solution: **2 crowns × 3 dresses = 6 unique princess looks**.',
+    solution: () => 'Solution: **2 crowns × 3 dresses = 6 unique princess outfits**.',
   },
 }
 
-export interface Screen2Step extends ExplanationMiniLessonPage {
+interface Screen2Step extends ExplanationMiniLessonPage {
   tree?: AnchorTree
 }
 
@@ -73,7 +73,7 @@ const screen2Steps: Screen2Step[] = [
     id: 'six-total-outfits',
     type: 'explanation',
     body:
-      'Look at that! When we **add them together**, we get **6 total princess styles**!',
+      'Look at that! When we **add them together**, we get **6 total princess outfits**!',
   },
 ]
 
@@ -96,15 +96,13 @@ export const screen3InteractiveChallenge: InteractiveChallengeContent = {
     correct: (princessName) =>
       `Spectacular, ${princessName}! **12 unique outfits** is exactly right! You're ready for the grand finale shortcut.`,
     incorrect: (princessName) =>
-      `Close! Think about it, ${princessName}: start with one finished look, then check how the shoe choice can change it.`,
+      `Close! Think about it, ${princessName}: start with one finished outfit, then check how the shoe choice can change it.`,
     tryAgain: firstTryAgainFeedback,
     solution: () => 'Solution: **2 crowns × 3 dresses × 2 pairs of shoes = 12 total variations**.',
   },
 }
 
 const SCREEN4_SHORTCUT_HEADING = '💥 The Ultimate Multiplication Shortcut'
-const SCREEN4_SHORTCUT_BODY =
-  'Instead of sketching tree diagrams or dragging items out of a digital closet every single time, you can just **multiply your total number of choices inside each category together**!'
 
 const screen4ShortcutSteps: ExplanationMiniLessonPage[] = [
   {
@@ -116,40 +114,32 @@ const screen4ShortcutSteps: ExplanationMiniLessonPage[] = [
     id: 'shortcut-crowns',
     type: 'explanation',
     body: 'How many **crowns** can you pick from?',
-    equation: '2 Crowns',
   },
   {
     id: 'shortcut-dresses',
     type: 'explanation',
     body: 'How many **dresses**? **Multiply** by that!',
-    equation: '2 Crowns × 3 Dresses',
   },
   {
     id: 'shortcut-shoes',
     type: 'explanation',
     body: 'And how many pairs of **shoes**? **Multiply** again!',
-    equation: '2 Crowns × 3 Dresses × 2 Shoes',
   },
   {
     id: 'shortcut-total',
     type: 'explanation',
     body: 'That gives you the **total number of unique outfits**!',
-    equation: '2 Crowns × 3 Dresses × 2 Shoes = 12 Total Outfits',
     nextLabel: 'Got it! ✨',
   },
 ]
 
-export interface Screen4PracticePage extends ChallengeMiniLessonPage<number> {
-  successEquation: string
-}
-
+export type Screen4PracticePage = ChallengeMiniLessonPage<number>
 export type Screen4MiniLessonPage = ExplanationMiniLessonPage | Screen4PracticePage
 
 export function screen4MiniLesson(princessName: string): ClickthroughMiniLesson<Screen4MiniLessonPage> {
   return {
     id: 'multiplication-shortcut',
     title: SCREEN4_SHORTCUT_HEADING,
-    description: SCREEN4_SHORTCUT_BODY,
     pages: [
       ...screen4ShortcutSteps,
       {
@@ -163,9 +153,7 @@ export function screen4MiniLesson(princessName: string): ClickthroughMiniLesson<
           correct: `You're a multiplication master, ${princessName}! **4 × 5 × 2 = 40** unique outfits — no counting one-by-one needed!`,
           incorrect: `Not quite, ${princessName}! Remember the shortcut: **multiply** the choices in each category.`,
           tryAgain: firstTryAgainFeedback(princessName),
-          solution: 'Solution: **4 crowns × 5 gowns × 2 pairs of shoes = 40 unique outfits**.',
         },
-        successEquation: '4 Crowns × 5 Gowns × 2 Shoes = 40 Total Outfits',
         nextLabel: 'Continue →',
       },
       {

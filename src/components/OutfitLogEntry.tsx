@@ -1,5 +1,5 @@
 import { ColoredHeart } from './ColoredHeart'
-import { getDressHeartColor, getOutfitLogEmoji, type ClosetItemStyle } from '../data/closetStyles'
+import { getClosetItemStyle, getDressHeartColor, getOutfitLogEmoji, type ClosetItemStyle } from '../data/closetStyles'
 import type { OutfitPair, OutfitTriple } from '../types/lesson'
 import type { ThemeMotifShape } from '../themes/themeTypes'
 
@@ -9,16 +9,18 @@ function ItemSymbol({
   itemId,
   fallbackEmoji,
   fallbackColor,
+  fallbackShape,
   itemMotifs,
 }: {
   itemId: string
   fallbackEmoji?: string | null
   fallbackColor?: string | null
+  fallbackShape?: ClosetItemStyle['motifShape']
   itemMotifs?: ItemMotifMap
 }) {
   const motif = itemMotifs?.[itemId]
-  const color = motif?.heartColor ?? fallbackColor
-  const shape = motif?.motifShape
+  const color = motif?.heartColor ?? motif?.border ?? fallbackColor
+  const shape = motif?.motifShape ?? fallbackShape
   if (color) {
     return <ColoredHeart color={color} shape={shape} className="outfit-log__heart" />
   }
@@ -27,24 +29,41 @@ function ItemSymbol({
 }
 
 function DressSymbol({ dressId, itemMotifs }: { dressId: string; itemMotifs?: ItemMotifMap }) {
-  const color = getDressHeartColor(dressId)
+  const base = getClosetItemStyle(dressId)
   return (
     <ItemSymbol
       itemId={dressId}
-      fallbackColor={color}
+      fallbackColor={getDressHeartColor(dressId)}
+      fallbackShape={base.motifShape ?? 'heart'}
       itemMotifs={itemMotifs}
     />
   )
 }
 
 function CrownSymbol({ crownId, itemMotifs }: { crownId: string; itemMotifs?: ItemMotifMap }) {
-  const emoji = getOutfitLogEmoji(crownId)
-  return <ItemSymbol itemId={crownId} fallbackEmoji={emoji} itemMotifs={itemMotifs} />
+  const base = getClosetItemStyle(crownId)
+  return (
+    <ItemSymbol
+      itemId={crownId}
+      fallbackEmoji={getOutfitLogEmoji(crownId)}
+      fallbackColor={base.heartColor ?? base.border}
+      fallbackShape={base.motifShape ?? 'star'}
+      itemMotifs={itemMotifs}
+    />
+  )
 }
 
 function ShoeSymbol({ shoeId, itemMotifs }: { shoeId: string; itemMotifs?: ItemMotifMap }) {
-  const emoji = getOutfitLogEmoji(shoeId)
-  return <ItemSymbol itemId={shoeId} fallbackEmoji={emoji} itemMotifs={itemMotifs} />
+  const base = getClosetItemStyle(shoeId)
+  return (
+    <ItemSymbol
+      itemId={shoeId}
+      fallbackEmoji={getOutfitLogEmoji(shoeId)}
+      fallbackColor={base.heartColor ?? base.border}
+      fallbackShape={base.motifShape ?? 'circle'}
+      itemMotifs={itemMotifs}
+    />
+  )
 }
 
 function LegacyDressHeart({

@@ -18,7 +18,7 @@ export const AnchorOutfitSum = memo(function AnchorOutfitSum({
   diamondCrownCount = DIAMOND_CROWN_OUTFITS,
   itemLabels,
   itemIcons,
-  lookNamePlural = 'princess styles',
+  lookNamePlural = 'princess outfits',
 }: AnchorOutfitSumProps) {
   const total = goldTiaraCount + diamondCrownCount
   const goldEmoji = itemIcons?.['gold-tiara'] ?? getOutfitLogEmoji('gold-tiara')

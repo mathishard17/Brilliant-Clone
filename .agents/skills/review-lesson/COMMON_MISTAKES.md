@@ -13,7 +13,8 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 ### Challenge Gating
 
 - Continue/Next should appear only after a correct answer when the section is a challenge.
-- If a visual builder is part of the task, the required visual state should be correct too.
+- Visual experiments/builders should support the thinking, not block a correct typed or selected answer, unless the lesson explicitly asks the learner to build the answer itself.
+- Do not require learners to enter every permutation, outfit, ordering, bag, or outcome before accepting a correct answer.
 - Duplicate answer attempts should be blocked or called out.
 - Duplicate-answer guards must not block an intentionally requested resubmit after the learner completes missing visual proof.
 
@@ -45,6 +46,7 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 
 - Do not reset saved progress on mount.
 - Completed lessons should reopen on their final section.
+- Final completion buttons must never silently no-op. If progress already says the lesson is completed, the button should still route the learner home or show a clear completed state.
 - Use `progressSteps.length`, not hardcoded section counts.
 - Updating one lesson must not mutate another lesson's progress.
 
@@ -73,7 +75,7 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 ### Voice Support
 
 - Voice must stay opt-in: use `profile.voiceEnabled`, keep replay controls disabled when Voice is off, and never autoplay without an explicit enabled preference.
-- Every client clip key in `src/voice/voiceClips.ts` must be mirrored in `functions/index.js`; otherwise the callable rejects the request.
+- Every client clip key in `src/voice/voiceClips.ts` must be supported by the Vercel voice API route/catalog; otherwise the request falls back or fails.
 - Safe-before-answer voice clips must not reveal answers, exact counts, equations, or number words that shortcut the learner's task.
 - Feedback voice should use short generic success/try-again clips, not read the full visible feedback or solution.
 - Feedback voice needs a local, non-persisted `playToken` incremented only on fresh answer submissions so saved banners do not speak again on resume.

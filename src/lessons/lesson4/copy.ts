@@ -32,7 +32,7 @@ export interface ChoiceChallenge {
   }
 }
 
-export interface Lesson4ChoiceChallengePage extends ChallengeMiniLessonPage<string> {
+interface Lesson4ChoiceChallengePage extends ChallengeMiniLessonPage<string> {
   type: 'challenge'
   visual: SpinnerVisual
   options: readonly string[]
@@ -128,18 +128,18 @@ export function getLesson4ThemeFlavor(
     settingName: activeTheme.themeName.trim() || 'Chance Lab',
     learnerRole: activeTheme.learnerRole.trim() || 'learner',
     visual: {
-      screenBackground: visual?.screenBackground ?? '#ffffff',
-      panelBackground: visual?.panelBackground ?? '#faf5ff',
-      borderColor: visual?.borderColor ?? '#e9d5ff',
-      accentColor: visual?.accentColor ?? '#7c3aed',
-      stageBackground: visual?.stageBackground ?? '#fce7f3',
-      buttonBackground: visual?.buttonBackground ?? '#ffffff',
-      buttonText: visual?.buttonText ?? '#7c3aed',
-      buttonBorder: visual?.buttonBorder ?? '#e9d5ff',
-      hintBackground: visual?.hintBackground ?? '#eff6ff',
-      hintText: visual?.hintText ?? '#1e40af',
-      successBackground: visual?.successBackground ?? '#ecfdf5',
-      successText: visual?.successText ?? '#065f46',
+      screenBackground: 'var(--theme-screen-bg, #020617)',
+      panelBackground: 'var(--theme-panel-bg, rgb(15 23 42 / 0.78))',
+      borderColor: 'var(--theme-border, rgb(148 163 184 / 0.24))',
+      accentColor: 'var(--theme-accent, #22d3ee)',
+      stageBackground: 'var(--theme-stage-bg, rgb(2 6 23 / 0.9))',
+      buttonBackground: 'var(--theme-neutral-bg, rgb(15 23 42 / 0.84))',
+      buttonText: 'var(--theme-neutral-text, #e2e8f0)',
+      buttonBorder: 'var(--theme-neutral-border, rgb(148 163 184 / 0.42))',
+      hintBackground: 'var(--theme-hint-bg, rgb(8 47 73 / 0.48))',
+      hintText: 'var(--theme-hint-text, #bae6fd)',
+      successBackground: 'var(--theme-success-bg, rgb(6 78 59 / 0.48))',
+      successText: 'var(--theme-success-text, #bbf7d0)',
       spinnerColors: {
         crown: visual?.motifPrimary ?? '#facc15',
         ruby: visual?.accentColor ?? '#fb7185',
@@ -207,10 +207,10 @@ export const screen1Visual: SpinnerVisual = {
   ],
 }
 
-export const screen1Copy = {
+const screen1Copy = {
   heading: 'Chance Spinners',
   body: (princessName: string) =>
-    `Welcome, ${princessName}! This spinner has **4 spaces**. When it spins, the arrow lands on exactly one space. Each space is one possible **outcome**.`,
+    `Welcome, ${princessName}! When this spinner spins, the arrow lands on exactly one space. Each space is one possible **outcome**.`,
   challenge: {
     id: 'total-outcomes',
     prompt: 'How many total outcomes are on this spinner?',
@@ -241,7 +241,7 @@ export const rubySpinnerVisual: SpinnerVisual = {
   ],
 }
 
-export const screen2MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
+const screen2MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
   id: 'winning-spaces',
   title: 'Winning Spaces',
   description:
@@ -251,7 +251,7 @@ export const screen2MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = 
       id: 'ruby-total-spaces',
       type: 'explanation',
       body:
-        'The target prize is a **Ruby**. This spinner has **6 total spaces**, but only **2 Ruby spaces**.\n\nThe Ruby spaces are the **favorable outcomes**. They are the outcomes we are hoping for.',
+        'The target prize is a **Ruby**. This spinner has Ruby spaces and other prize spaces.\n\nThe Ruby spaces are the **favorable outcomes**. They are the outcomes we are hoping for.',
     },
     {
       id: 'ruby-equation',
@@ -298,7 +298,7 @@ export const compareSpinnerVisual: SpinnerVisual = {
   ],
 }
 
-export const screen3Copy = {
+const screen3Copy = {
   heading: 'More Likely, Less Likely',
   body:
     'Some prizes have more winning spaces than others. More winning spaces means a prize is **more likely**.',
@@ -358,7 +358,7 @@ export const certainVisual: SpinnerVisual = {
   ],
 }
 
-export const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
+const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
   id: 'impossible-and-certain',
   title: 'Impossible and Certain Outcomes',
   pages: [
@@ -366,7 +366,7 @@ export const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = 
       id: 'impossible-explanation',
       type: 'explanation',
       body:
-        'The target prize is **Dragon**, but look carefully: there are no Dragon spaces.\n\nIf there are **0 winning spaces**, the chance has 0 on top. That means impossible on this spinner.',
+        'The target prize is **Dragon**. Look carefully for any Dragon spaces before you answer.\n\nIf there are no winning spaces, the chance has 0 on top. That means impossible on this spinner.',
     },
     {
       id: 'dragon-impossible',
@@ -390,7 +390,7 @@ export const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = 
       id: 'certain-explanation',
       type: 'explanation',
       body:
-        'Now every space is **Sparkle**. If every possible outcome wins, the winning count and total count are the same. That means certain.',
+        'Now the target prize is **Sparkle**. Check whether every space matches the target.\n\nIf every possible outcome wins, the winning count and total count are the same. That means certain.',
     },
     {
       id: 'sparkle-certain',
@@ -400,8 +400,8 @@ export const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = 
       options: ['0/4', '1/4', '3/4', '4/4'],
       feedback: {
         correct: 'Perfect! All **4 spaces** are Sparkle, so Sparkle is certain: **4/4**.',
-      incorrect:
-        'Not quite. Count Sparkle spaces for the top number, then count every space for the bottom number.',
+        incorrect:
+          'Not quite. Count Sparkle spaces for the top number, then count every space for the bottom number.',
         tryAgain: 'Try again! Count the Sparkle spaces, then count all spaces.',
         solution: 'There are **4 Sparkle spaces** out of **4 total spaces**, so the chance is **4/4**.',
       },
@@ -428,7 +428,7 @@ export const finaleVisual: SpinnerVisual = {
   ],
 }
 
-export const screen5Copy = {
+const screen5Copy = {
   heading: 'Prize Wheel Finale',
   body:
     'The final wheel is ready! Count the prize spaces before the first spin.',
@@ -489,7 +489,7 @@ export function getThemedScreen1Copy(flavor: Lesson4ThemeFlavor): typeof screen1
     ...screen1Copy,
     heading: `${flavor.settingName} Chance Spinners`,
     body: (princessName: string) =>
-      `Welcome to ${flavor.settingName}, ${princessName}! This spinner has **4 spaces**. When your ${flavor.learnerRole} spins, the arrow lands on exactly one space. Each space is one possible **outcome**.`,
+      `Welcome to ${flavor.settingName}, ${princessName}! When your ${flavor.learnerRole} spins, the arrow lands on exactly one space. Each space is one possible **outcome**.`,
   }
 }
 

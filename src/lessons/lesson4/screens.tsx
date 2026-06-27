@@ -2,15 +2,16 @@ import { useState, type CSSProperties } from 'react'
 import '../../screens/screens.css'
 import { ClickthroughMiniLesson } from '../../components/ClickthroughMiniLesson'
 import { FeedbackBanner } from '../../components/FeedbackBanner'
+import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import { useLesson } from '../../hooks/useLesson'
-import { useSectionState } from '../../hooks/useSectionState'
 import { LESSON_4_ID } from '../../types/lesson'
 import { lesson1ThemeStyle, resolveLesson1Theme } from '../../themes/themeResolver'
 import { playCompletionTada } from '../../utils/completionSound'
+import { getProfileLessonProgress } from '../../utils/lessonProgress'
 import {
   certainVisual,
   compareSpinnerVisual,
@@ -47,10 +48,7 @@ function useThemedLesson() {
   return {
     ...lesson,
     lesson4Flavor: getLesson4ThemeFlavor(activeTheme),
-    lesson4Style: {
-      ...themeStyle,
-      background: 'linear-gradient(180deg, var(--theme-screen-bg) 0%, var(--theme-stage-bg) 100%)',
-    } as CSSProperties,
+    lesson4Style: themeStyle,
   }
 }
 
@@ -64,6 +62,13 @@ const prizeColors: Record<PrizeKind, string> = {
 }
 
 const solutionRevealWrongAttempts = 2
+
+interface Lesson4ChoiceState {
+  selectedAnswer: string | null
+  attemptedAnswers: string[]
+  wrongAttempts: number
+  isCorrect: boolean
+}
 
 function isChallengePage(
   page: Lesson4MiniLessonPage,
@@ -127,32 +132,101 @@ function getSpinnerBackground(spaces: readonly SpinnerSpace[], themeFlavor: Less
       const start = index * slice
       const end = (index + 1) * slice
       const separatorStart = Math.max(start, end - 0.45)
-      return `${themeFlavor.visual.spinnerColors[space.prize] ?? prizeColors[space.prize]} ${start}% ${separatorStart}%, rgb(255 255 255 / 0.78) ${separatorStart}% ${end}%`
+      return `${themeFlavor.visual.spinnerColors[space.prize] ?? prizeColors[space.prize]} ${start}% ${separatorStart}%, var(--theme-spinner-separator, rgb(15 23 42 / 0.92)) ${separatorStart}% ${end}%`
     })
     .join(', ')
 
   return `conic-gradient(from 0deg, ${gradient})`
 }
 
-function addSolvedChallengeId(solvedChallengeIds: readonly string[], challengeId: string): string[] {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : []
+}
+
+function getStoredChoiceState(
+  sectionState: Record<string, Record<string, unknown>>,
+  challenge: ChoiceChallenge,
+): Lesson4ChoiceState {
+  const savedState = sectionState[`lesson-4-choice-${challenge.id}`]
+  if (!isRecord(savedState)) {
+    return {
+      selectedAnswer: null,
+      attemptedAnswers: [],
+      wrongAttempts: 0,
+      isCorrect: false,
+    }
+  }
+
+  const selectedAnswer =
+    typeof savedState.selectedAnswer === 'string' ? savedState.selectedAnswer : null
+  const attemptedAnswers = getStringArray(savedState.attemptedAnswers)
+
+  return {
+    selectedAnswer,
+    attemptedAnswers:
+      attemptedAnswers.length > 0
+        ? attemptedAnswers
+        : selectedAnswer === null
+          ? []
+          : [selectedAnswer],
+    wrongAttempts:
+      typeof savedState.wrongAttempts === 'number' && savedState.wrongAttempts >= 0
+        ? savedState.wrongAttempts
+        : 0,
+    isCorrect: savedState.isCorrect === true || selectedAnswer === challenge.answer,
+  }
+}
+
+function hasStoredCorrectChoice(
+  sectionState: Record<string, Record<string, unknown>>,
+  challenge: ChoiceChallenge,
+): boolean {
+  return getStoredChoiceState(sectionState, challenge).isCorrect
+}
+
+function getStoredPageIndex(
+  sectionState: Record<string, Record<string, unknown>>,
+  sectionId: string,
+  pageCount: number,
+): number {
+  const pageIndex = sectionState[sectionId]?.pageIndex
+  const maxPageIndex = Math.max(pageCount - 1, 0)
+  if (typeof pageIndex !== 'number' || !Number.isInteger(pageIndex)) return 0
+  return Math.min(Math.max(pageIndex, 0), maxPageIndex)
+}
+
+function addSolvedChallengeId(solvedChallengeIds: string[], challengeId: string): string[] {
   return solvedChallengeIds.includes(challengeId)
-    ? [...solvedChallengeIds]
+    ? solvedChallengeIds
     : [...solvedChallengeIds, challengeId]
+}
+
+function hasSolvedChoice(
+  sectionState: Record<string, Record<string, unknown>>,
+  challenge: ChoiceChallenge,
+  solvedChallengeIds: string[],
+): boolean {
+  return solvedChallengeIds.includes(challenge.id) || hasStoredCorrectChoice(sectionState, challenge)
 }
 
 function ChanceSpinner({
   visual,
   themeFlavor,
+  showCountSummary = true,
 }: {
   visual: SpinnerVisual
   themeFlavor: Lesson4ThemeFlavor
+  showCountSummary?: boolean
 }) {
-  const [state, setState] = useSectionState(`lesson-4-spinner-${visual.id}`, {
-    selectedPrize: visual.targetPrize ?? visual.spaces[0].prize,
-    landedIndex: null as number | null,
-    spinRotation: 0,
-  })
-  const { selectedPrize, landedIndex, spinRotation } = state
+  const [selectedPrize, setSelectedPrize] = useState<PrizeKind>(
+    visual.targetPrize ?? visual.spaces[0].prize,
+  )
+  const [landedIndex, setLandedIndex] = useState<number | null>(null)
+  const [spinRotation, setSpinRotation] = useState(0)
   const themedVisual = themeSpinnerVisualText(visual, themeFlavor)
   const selectedPrizeDefinition = themeFlavor.prizeDefinitions[selectedPrize]
   const selectedCount = countPrize(visual.spaces, selectedPrize)
@@ -160,17 +234,17 @@ function ChanceSpinner({
   const visualTheme = themeFlavor.visual
 
   function handleSpin() {
-    const nextIndex = landedIndex === null ? 0 : (landedIndex + 3) % visual.spaces.length
+    const nextIndex = Math.floor(Math.random() * visual.spaces.length)
     const slice = 360 / visual.spaces.length
     const segmentCenter = nextIndex * slice + slice / 2
-    const currentMod = ((spinRotation % 360) + 360) % 360
     const targetMod = (360 - segmentCenter) % 360
-    const delta = (targetMod - currentMod + 360) % 360
 
-    setState({
-      landedIndex: nextIndex,
-      selectedPrize: visual.spaces[nextIndex].prize,
-      spinRotation: spinRotation + 720 + delta,
+    setLandedIndex(nextIndex)
+    setSelectedPrize(visual.spaces[nextIndex].prize)
+    setSpinRotation((currentRotation) => {
+      const currentMod = ((currentRotation % 360) + 360) % 360
+      const delta = (targetMod - currentMod + 360) % 360
+      return currentRotation + 720 + delta
     })
   }
 
@@ -194,7 +268,7 @@ function ChanceSpinner({
               borderColor: visualTheme.accentColor,
             } as CSSProperties
           }
-          aria-label={`${themedVisual.title} with ${visual.spaces.length} equal spaces`}
+          aria-label={`${themedVisual.title} with equal prize spaces`}
         >
           <div className="chance-spinner__rotor">
             <div className="chance-spinner__wheel" aria-hidden="true" />
@@ -219,7 +293,7 @@ function ChanceSpinner({
                     } as CSSProperties
                   }
                   aria-pressed={isSelected}
-                  onClick={() => setState({ selectedPrize: space.prize })}
+                  onClick={() => setSelectedPrize(space.prize)}
                   aria-label={`Inspect ${prize.label} space ${index + 1}`}
                 >
                   <span aria-hidden="true">{prize.icon}</span>
@@ -262,7 +336,7 @@ function ChanceSpinner({
                   color: isSelected ? '#ffffff' : visualTheme.buttonText,
                 }}
                 aria-pressed={isSelected}
-                onClick={() => setState({ selectedPrize: prize })}
+                onClick={() => setSelectedPrize(prize)}
               >
                 <span aria-hidden="true">{definition.icon}</span>
                 {definition.label}
@@ -272,10 +346,12 @@ function ChanceSpinner({
         </div>
       </div>
 
-      <p className="chance-spinner-card__count" style={{ color: visualTheme.hintText }} aria-live="polite">
-        {selectedPrizeDefinition.icon} {selectedPrizeDefinition.label} spaces:{' '}
-        <strong>{selectedCount}</strong> / Total spaces: <strong>{visual.spaces.length}</strong>
-      </p>
+      {showCountSummary && (
+        <p className="chance-spinner-card__count" style={{ color: visualTheme.hintText }} aria-live="polite">
+          {selectedPrizeDefinition.icon} {selectedPrizeDefinition.label} spaces:{' '}
+          <strong>{selectedCount}</strong> / Total spaces: <strong>{visual.spaces.length}</strong>
+        </p>
+      )}
     </div>
   )
 }
@@ -289,15 +365,15 @@ function ChoiceChallengeCard({
   themeFlavor: Lesson4ThemeFlavor
   onCorrect?: () => void
 }) {
-  const { profile } = useLesson()
+  const { profile, recordStudentMemoryEvent, updateLesson } = useLesson()
+  const activeLesson = getProfileLessonProgress(profile)
   const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
-  const [state, setState] = useSectionState(`lesson-4-choice-${challenge.id}`, {
-    selectedAnswer: null as string | null,
-    attemptedAnswers: [] as string[],
-    repeatMessage: null as string | null,
-    wrongAttempts: 0,
-  })
-  const { selectedAnswer, attemptedAnswers, repeatMessage, wrongAttempts } = state
+  const sectionId = `lesson-4-choice-${challenge.id}`
+  const savedChoiceState = getStoredChoiceState(activeLesson.sectionState, challenge)
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(() => savedChoiceState.selectedAnswer)
+  const [attemptedAnswers, setAttemptedAnswers] = useState<string[]>(() => savedChoiceState.attemptedAnswers)
+  const [repeatMessage, setRepeatMessage] = useState<string | null>(null)
+  const [wrongAttempts, setWrongAttempts] = useState(savedChoiceState.wrongAttempts)
   const isCorrect = selectedAnswer === challenge.answer
   const showFeedback = selectedAnswer !== null
   const shouldRevealSolution = wrongAttempts >= solutionRevealWrongAttempts
@@ -305,18 +381,39 @@ function ChoiceChallengeCard({
 
   function handleAnswer(answer: string) {
     if (attemptedAnswers.includes(answer)) {
-      setState({ repeatMessage: `You already tried **${answer}**. Try a different answer!` })
+      setRepeatMessage(`You already tried **${answer}**. Try a different answer!`)
       return
     }
 
-    setState({
-      attemptedAnswers: [...attemptedAnswers, answer],
-      repeatMessage: null,
-      selectedAnswer: answer,
-      wrongAttempts: answer === challenge.answer ? wrongAttempts : wrongAttempts + 1,
-    })
+    const correct = answer === challenge.answer
+    const nextAttemptedAnswers = [...attemptedAnswers, answer]
+    const nextWrongAttempts = correct ? wrongAttempts : wrongAttempts + 1
+
+    setAttemptedAnswers(nextAttemptedAnswers)
+    setRepeatMessage(null)
+    setSelectedAnswer(answer)
+    setWrongAttempts(nextWrongAttempts)
+    void updateLesson({
+      sectionState: {
+        [sectionId]: {
+          selectedAnswer: answer,
+          attemptedAnswers: nextAttemptedAnswers,
+          wrongAttempts: nextWrongAttempts,
+          isCorrect: correct,
+        },
+      },
+    }).catch(() => undefined)
+    void recordStudentMemoryEvent({
+      type: 'challengeAttempt',
+      lessonId: LESSON_4_ID,
+      conceptKey: `lesson-4-${challenge.id}`,
+      label: 'Spinner chance',
+      outcome: correct ? 'correct' : 'incorrect',
+      learnerAnswer: answer,
+      correctAnswer: challenge.answer,
+    }).catch(() => undefined)
     setFeedbackVoiceToken((token) => token + 1)
-    if (answer === challenge.answer) {
+    if (correct) {
       onCorrect?.()
       return
     }
@@ -353,6 +450,20 @@ function ChoiceChallengeCard({
         })}
       </div>
 
+      <HintButton
+        lessonId={LESSON_4_ID}
+        conceptKey={`lesson-4-${challenge.id}`}
+        conceptLabel="Spinner chance"
+        prompt={challenge.prompt}
+        context="The learner is choosing which spinner outcome statement matches the visible winning spaces."
+        fallbackHint={challenge.feedback.tryAgain}
+        blockedAnswerTerms={[challenge.answer]}
+        learnerAnswer={selectedAnswer ?? ''}
+        attemptedAnswers={attemptedAnswers}
+        wrongAttempts={wrongAttempts}
+        disabled={!showFeedback || isCorrect}
+      />
+
       {showFeedback && (
         <FeedbackBanner
           variant={isCorrect ? 'success' : 'error'}
@@ -382,16 +493,22 @@ function MiniLessonPage({
   page,
   themeFlavor,
   onCorrect,
+  showCountSummary,
 }: {
   page: Lesson4MiniLessonPage
   themeFlavor: Lesson4ThemeFlavor
   onCorrect: () => void
+  showCountSummary: boolean
 }) {
   if (isChallengePage(page)) {
     const themedPage = themeChoiceChallenge(page, themeFlavor)
     return (
       <div className="chance-mini-lesson__page">
-        <ChanceSpinner visual={getThemedSpinnerVisual(page.visual, themeFlavor)} themeFlavor={themeFlavor} />
+        <ChanceSpinner
+          visual={getThemedSpinnerVisual(page.visual, themeFlavor)}
+          themeFlavor={themeFlavor}
+          showCountSummary={showCountSummary}
+        />
         <ChoiceChallengeCard challenge={themedPage} themeFlavor={themeFlavor} onCorrect={onCorrect} />
       </div>
     )
@@ -416,10 +533,11 @@ function MiniLessonPage({
 
 export function Lesson4OneSpin({ princessName }: Lesson4ScreenProps) {
   const { lesson4Flavor, lesson4Style, profile, updateScreen } = useThemedLesson()
-  const [state, setState] = useSectionState('lesson-4-one-spin', { challengeCorrect: false })
-  const { challengeCorrect } = state
+  const activeLesson = getProfileLessonProgress(profile)
   const copy = getThemedScreen1Copy(lesson4Flavor)
   const challenge = themeChoiceChallenge(copy.challenge, lesson4Flavor)
+  const [solvedChallengeIds, setSolvedChallengeIds] = useState<string[]>([])
+  const challengeSolved = hasSolvedChoice(activeLesson.sectionState, challenge, solvedChallengeIds)
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-4" style={lesson4Style}>
@@ -427,20 +545,26 @@ export function Lesson4OneSpin({ princessName }: Lesson4ScreenProps) {
       <h1>{copy.heading}</h1>
       <LessonText text={copy.body(princessName)} className="anchor-lesson__text" />
       <VoiceButton
-        autoPlay={!challengeCorrect}
+        autoPlay={!challengeSolved}
         enabled={profile.voiceEnabled}
         lessonId={LESSON_4_ID}
         clipKey="lesson4.screen1.spinnerIntro"
         themePreference={profile.themePreference}
         label="Listen to spinner tip"
       />
-      <ChanceSpinner visual={getThemedSpinnerVisual(screen1Visual, lesson4Flavor)} themeFlavor={lesson4Flavor} />
+      <ChanceSpinner
+        visual={getThemedSpinnerVisual(screen1Visual, lesson4Flavor)}
+        themeFlavor={lesson4Flavor}
+        showCountSummary={challengeSolved}
+      />
       <ChoiceChallengeCard
         challenge={challenge}
         themeFlavor={lesson4Flavor}
-        onCorrect={() => setState({ challengeCorrect: true })}
+        onCorrect={() =>
+          setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, challenge.id))
+        }
       />
-      {challengeCorrect && (
+      {challengeSolved && (
         <>
           <FeedbackBanner variant="info" message={copy.keyLine} />
           <LessonButton label="Find winning spaces" onClick={() => void updateScreen(2)} />
@@ -451,31 +575,31 @@ export function Lesson4OneSpin({ princessName }: Lesson4ScreenProps) {
 }
 
 export function Lesson4WinningSpaces() {
-  const { lesson4Flavor, lesson4Style, updateScreen } = useThemedLesson()
-  const [state, setState] = useSectionState('lesson-4-winning-spaces', {
-    pageIndex: 0,
-    challengeCorrect: false,
-    solvedChallengeIds: [] as string[],
-  })
-  const { pageIndex, challengeCorrect, solvedChallengeIds } = state
+  const { lesson4Flavor, lesson4Style, profile, updateLesson, updateScreen } = useThemedLesson()
+  const activeLesson = getProfileLessonProgress(profile)
   const miniLesson = getThemedScreen2MiniLesson(lesson4Flavor)
+  const sectionId = 'lesson-4-winning-spaces'
+  const [pageIndex, setPageIndex] = useState(() =>
+    getStoredPageIndex(activeLesson.sectionState, sectionId, miniLesson.pages.length),
+  )
+  const [solvedChallengeIds, setSolvedChallengeIds] = useState<string[]>([])
+  const rubyChallengeSolved = isPageSolved(miniLesson.pages[2])
 
   function handlePageChange(nextPageIndex: number) {
-    setState({ pageIndex: nextPageIndex })
+    const pageIndexToSave = Math.min(Math.max(nextPageIndex, 0), miniLesson.pages.length - 1)
+    setPageIndex(pageIndexToSave)
+    void updateLesson({
+      sectionState: {
+        [sectionId]: { pageIndex: pageIndexToSave },
+      },
+    }).catch(() => undefined)
   }
 
   function isPageSolved(page: Lesson4MiniLessonPage) {
     return (
       isChallengePage(page) &&
-      (solvedChallengeIds.includes(page.id) || (challengeCorrect && page.id === 'ruby-chance'))
+      hasSolvedChoice(activeLesson.sectionState, themeChoiceChallenge(page, lesson4Flavor), solvedChallengeIds)
     )
-  }
-
-  function handleChallengeCorrect(challengeId: string) {
-    setState({
-      challengeCorrect: true,
-      solvedChallengeIds: addSolvedChallengeId(solvedChallengeIds, challengeId),
-    })
   }
 
   return (
@@ -486,7 +610,11 @@ export function Lesson4WinningSpaces() {
         <LessonText text={miniLesson.description} className="anchor-lesson__text" />
       )}
       {pageIndex < 2 && (
-        <ChanceSpinner visual={getThemedSpinnerVisual(rubySpinnerVisual, lesson4Flavor)} themeFlavor={lesson4Flavor} />
+        <ChanceSpinner
+          visual={getThemedSpinnerVisual(rubySpinnerVisual, lesson4Flavor)}
+          themeFlavor={lesson4Flavor}
+          showCountSummary={rubyChallengeSolved}
+        />
       )}
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
@@ -503,11 +631,14 @@ export function Lesson4WinningSpaces() {
             key={page.id}
             page={page}
             themeFlavor={lesson4Flavor}
-            onCorrect={() => handleChallengeCorrect(page.id)}
+            showCountSummary={isPageSolved(page)}
+            onCorrect={() =>
+              setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, page.id))
+            }
           />
         )}
       />
-      {isPageSolved(miniLesson.pages[2]) && (
+      {rubyChallengeSolved && (
         <FeedbackBanner variant="info" message={screen2KeyLine} />
       )}
     </section>
@@ -515,35 +646,42 @@ export function Lesson4WinningSpaces() {
 }
 
 export function Lesson4MoreLikely() {
-  const { lesson4Flavor, lesson4Style, updateScreen } = useThemedLesson()
-  const [state, setState] = useSectionState('lesson-4-more-likely', {
-    compareCorrect: false,
-    crownCorrect: false,
-  })
-  const { compareCorrect, crownCorrect } = state
+  const { lesson4Flavor, lesson4Style, profile, updateScreen } = useThemedLesson()
+  const activeLesson = getProfileLessonProgress(profile)
   const copy = getThemedScreen3Copy(lesson4Flavor)
   const compareChallenge = themeChoiceChallenge(copy.compareChallenge, lesson4Flavor)
   const crownChallenge = themeChoiceChallenge(copy.crownChallenge, lesson4Flavor)
+  const [solvedChallengeIds, setSolvedChallengeIds] = useState<string[]>([])
+  const compareSolved = hasSolvedChoice(activeLesson.sectionState, compareChallenge, solvedChallengeIds)
+  const crownSolved = hasSolvedChoice(activeLesson.sectionState, crownChallenge, solvedChallengeIds)
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-4" style={lesson4Style}>
       <ScreenBackButton label="← Back" onClick={() => void updateScreen(2)} />
       <h1>{copy.heading}</h1>
       <LessonText text={copy.body} className="anchor-lesson__text" />
-      <ChanceSpinner visual={getThemedSpinnerVisual(compareSpinnerVisual, lesson4Flavor)} themeFlavor={lesson4Flavor} />
+      <ChanceSpinner
+        visual={getThemedSpinnerVisual(compareSpinnerVisual, lesson4Flavor)}
+        themeFlavor={lesson4Flavor}
+        showCountSummary={compareSolved && crownSolved}
+      />
       <ChoiceChallengeCard
         challenge={compareChallenge}
         themeFlavor={lesson4Flavor}
-        onCorrect={() => setState({ compareCorrect: true })}
+        onCorrect={() =>
+          setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, compareChallenge.id))
+        }
       />
-      {compareCorrect && (
+      {compareSolved && (
         <ChoiceChallengeCard
           challenge={crownChallenge}
           themeFlavor={lesson4Flavor}
-          onCorrect={() => setState({ crownCorrect: true })}
+          onCorrect={() =>
+            setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, crownChallenge.id))
+          }
         />
       )}
-      {compareCorrect && crownCorrect && (
+      {compareSolved && crownSolved && (
         <LessonButton label="Check impossible outcomes" onClick={() => void updateScreen(4)} />
       )}
     </section>
@@ -551,32 +689,32 @@ export function Lesson4MoreLikely() {
 }
 
 export function Lesson4ImpossibleCertain() {
-  const { lesson4Flavor, lesson4Style, updateScreen } = useThemedLesson()
-  const [state, setState] = useSectionState('lesson-4-impossible-certain', {
-    pageIndex: 0,
-    challengeCorrect: false,
-    solvedChallengeIds: [] as string[],
-  })
-  const { pageIndex, challengeCorrect, solvedChallengeIds } = state
+  const { lesson4Flavor, lesson4Style, profile, updateLesson, updateScreen } = useThemedLesson()
+  const activeLesson = getProfileLessonProgress(profile)
   const miniLesson = getThemedScreen4MiniLesson(lesson4Flavor)
+  const sectionId = 'lesson-4-impossible-certain'
+  const [pageIndex, setPageIndex] = useState(() =>
+    getStoredPageIndex(activeLesson.sectionState, sectionId, miniLesson.pages.length),
+  )
+  const [solvedChallengeIds, setSolvedChallengeIds] = useState<string[]>([])
+  const impossibleChallengeSolved = isPageSolved(miniLesson.pages[1])
+  const certainChallengeSolved = isPageSolved(miniLesson.pages[3])
 
   function handlePageChange(nextPageIndex: number) {
-    setState({ pageIndex: nextPageIndex })
+    const pageIndexToSave = Math.min(Math.max(nextPageIndex, 0), miniLesson.pages.length - 1)
+    setPageIndex(pageIndexToSave)
+    void updateLesson({
+      sectionState: {
+        [sectionId]: { pageIndex: pageIndexToSave },
+      },
+    }).catch(() => undefined)
   }
 
   function isPageSolved(page: Lesson4MiniLessonPage) {
     return (
       isChallengePage(page) &&
-      (solvedChallengeIds.includes(page.id) ||
-        (challengeCorrect && miniLesson.pages[pageIndex]?.id === page.id))
+      hasSolvedChoice(activeLesson.sectionState, themeChoiceChallenge(page, lesson4Flavor), solvedChallengeIds)
     )
-  }
-
-  function handleChallengeCorrect(challengeId: string) {
-    setState({
-      challengeCorrect: true,
-      solvedChallengeIds: addSolvedChallengeId(solvedChallengeIds, challengeId),
-    })
   }
 
   return (
@@ -584,10 +722,18 @@ export function Lesson4ImpossibleCertain() {
       <ScreenBackButton label="← Back" onClick={() => void updateScreen(3)} />
       <h1>{miniLesson.title}</h1>
       {pageIndex === 0 && (
-        <ChanceSpinner visual={getThemedSpinnerVisual(impossibleVisual, lesson4Flavor)} themeFlavor={lesson4Flavor} />
+        <ChanceSpinner
+          visual={getThemedSpinnerVisual(impossibleVisual, lesson4Flavor)}
+          themeFlavor={lesson4Flavor}
+          showCountSummary={impossibleChallengeSolved}
+        />
       )}
       {pageIndex === 2 && (
-        <ChanceSpinner visual={getThemedSpinnerVisual(certainVisual, lesson4Flavor)} themeFlavor={lesson4Flavor} />
+        <ChanceSpinner
+          visual={getThemedSpinnerVisual(certainVisual, lesson4Flavor)}
+          themeFlavor={lesson4Flavor}
+          showCountSummary={certainChallengeSolved}
+        />
       )}
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
@@ -604,7 +750,10 @@ export function Lesson4ImpossibleCertain() {
             key={page.id}
             page={page}
             themeFlavor={lesson4Flavor}
-            onCorrect={() => handleChallengeCorrect(page.id)}
+            showCountSummary={isPageSolved(page)}
+            onCorrect={() =>
+              setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, page.id))
+            }
           />
         )}
       />
@@ -613,19 +762,33 @@ export function Lesson4ImpossibleCertain() {
 }
 
 export function Lesson4Finale() {
-  const { lesson4Flavor, lesson4Style, updateLesson, updateScreen } = useThemedLesson()
-  const [state, setState] = useSectionState('lesson-4-finale', {
-    crownCorrect: false,
-    compareCorrect: false,
-  })
-  const { crownCorrect, compareCorrect } = state
+  const { lesson4Flavor, lesson4Style, profile, updateLesson, updateScreen } = useThemedLesson()
+  const activeLesson = getProfileLessonProgress(profile)
   const copy = getThemedScreen5Copy(lesson4Flavor)
   const crownChallenge = themeChoiceChallenge(copy.crownChallenge, lesson4Flavor)
   const rubyDragonChallenge = themeChoiceChallenge(copy.rubyDragonChallenge, lesson4Flavor)
+  const [solvedChallengeIds, setSolvedChallengeIds] = useState<string[]>([])
+  const [finishing, setFinishing] = useState(false)
+  const lessonCompleted = activeLesson.completed
+  const crownSolved =
+    lessonCompleted || hasSolvedChoice(activeLesson.sectionState, crownChallenge, solvedChallengeIds)
+  const compareSolved =
+    lessonCompleted || hasSolvedChoice(activeLesson.sectionState, rubyDragonChallenge, solvedChallengeIds)
 
   async function handleFinish() {
-    playCompletionTada()
-    await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    if (finishing) return
+    setFinishing(true)
+    try {
+      if (lessonCompleted) {
+        await updateScreen(0)
+        return
+      }
+      playCompletionTada()
+      await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    } catch (error) {
+      setFinishing(false)
+      throw error
+    }
   }
 
   return (
@@ -633,23 +796,35 @@ export function Lesson4Finale() {
       <ScreenBackButton label="← Back" onClick={() => void updateScreen(4)} />
       <h1>{copy.heading}</h1>
       <LessonText text={copy.body} className="anchor-lesson__text" />
-      <ChanceSpinner visual={getThemedSpinnerVisual(finaleVisual, lesson4Flavor)} themeFlavor={lesson4Flavor} />
+      <ChanceSpinner
+        visual={getThemedSpinnerVisual(finaleVisual, lesson4Flavor)}
+        themeFlavor={lesson4Flavor}
+        showCountSummary={crownSolved && compareSolved}
+      />
       <ChoiceChallengeCard
         challenge={crownChallenge}
         themeFlavor={lesson4Flavor}
-        onCorrect={() => setState({ crownCorrect: true })}
+        onCorrect={() =>
+          setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, crownChallenge.id))
+        }
       />
-      {crownCorrect && (
+      {crownSolved && (
         <ChoiceChallengeCard
           challenge={rubyDragonChallenge}
           themeFlavor={lesson4Flavor}
-          onCorrect={() => setState({ compareCorrect: true })}
+          onCorrect={() =>
+            setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, rubyDragonChallenge.id))
+          }
         />
       )}
-      {crownCorrect && compareCorrect && (
+      {crownSolved && compareSolved && (
         <>
           <FeedbackBanner variant="info" message={copy.finalMessage} />
-          <LessonButton label="Finish Lesson" onClick={handleFinish} />
+          <LessonButton
+            label={lessonCompleted ? 'Return to Academy' : finishing ? 'Saving...' : 'Finish Lesson'}
+            onClick={handleFinish}
+            disabled={finishing}
+          />
         </>
       )}
     </section>

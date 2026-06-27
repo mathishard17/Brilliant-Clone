@@ -20,17 +20,27 @@ interface FeedbackBannerProps {
 
 function FeedbackVoiceCuePlayer({
   cue,
+  message,
   variant,
 }: {
   cue: FeedbackVoiceCue
+  message: string
   variant: 'success' | 'error'
 }) {
   const clipKey = variant === 'success' ? cue.correctClipKey : cue.tryAgainClipKey
+  const outcome = variant === 'success' ? 'correct' : 'tryAgain'
   const cueKey = `${cue.lessonId}:${clipKey}:${cue.themePreference}:${variant}:${String(cue.playToken)}`
   const playedCueRef = useRef<string | null>(null)
   const { play } = useVoiceClip({
     lessonId: cue.lessonId,
     clipKey,
+    feedbackContext: cue.playToken == null
+      ? undefined
+      : {
+          outcome,
+          message,
+          nonce: String(cue.playToken),
+        },
     themePreference: cue.themePreference,
   })
 
@@ -48,7 +58,7 @@ export function FeedbackBanner({ message, variant, voiceCue }: FeedbackBannerPro
   return (
     <div className={`feedback-banner feedback-banner--${variant}`} role="status" aria-live="polite">
       {voiceCue && variant !== 'info' && (
-        <FeedbackVoiceCuePlayer cue={voiceCue} variant={variant} />
+        <FeedbackVoiceCuePlayer cue={voiceCue} message={message} variant={variant} />
       )}
       {icon}
       {renderLessonText(message)}

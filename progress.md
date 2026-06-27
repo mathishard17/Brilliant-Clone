@@ -17,7 +17,7 @@ Concise milestone log for **Counting Adventures**.
 ## Multi-Lesson Architecture
 
 - Added `src/lessons/registry.ts` with per-lesson metadata, screen maps, reset logic, resume logic, and progress labels.
-- Changed progress storage to support `activeLessonId` and `lessons: Record<string, LessonProgress>`, while keeping legacy `lesson` compatibility.
+- Changed progress storage to use `activeLessonId` and `lessons: Record<string, LessonProgress>` only; the original one-lesson `lesson` compatibility field is no longer read or written.
 - Made section counts configurable through each lesson's `progressSteps`.
 - Reorganized lesson files into `src/lessons/lessonN/` folders.
 - Added lesson title chrome and per-lesson progress bars.
@@ -49,7 +49,7 @@ Concise milestone log for **Counting Adventures**.
 - Added profile fields for `themePreference` and cached `themePacks`.
 - Updated signup and the Home Hub so a learner can choose or change a theme preference, including custom-theme fallback behavior.
 - Updated Lesson 1 rendering so labels and flavor copy can come from a validated theme pack while counts and answers stay deterministic.
-- Added Firebase AI Logic generation code for Lesson 1 theme packs, including validation, fallback behavior, caching, and `VITE_FIREBASE_AI_MODEL` support.
+- Added Vercel API generation code for Lesson 1 theme packs, including validation, fallback behavior, caching, and server-side OpenAI calls.
 - Added optional Lesson 1 AI hints with safe JSON validation and fallback hints that do not change correctness or progress.
 - Added theme visual identity, including distinct Royal/Space color schemes and an astronaut-style Space character.
 - Added bounded flexible copy slots so themes can change headings, transitions, and summary language while equations and answers stay code-owned.
@@ -60,15 +60,15 @@ Concise milestone log for **Counting Adventures**.
 - Added lesson-local theme bridges for Lessons 2–5 while shared per-lesson theme-pack contracts remain future work.
 - Expanded the shared theme visual contract with optional UI state tokens for error, warning, status, selected, disabled, input/focus, diagram, spinner, meter, neutral, and dialog-like surfaces.
 - Mapped those theme tokens into CSS variables and applied them to shared feedback, voice status, inputs, selected states, clickthrough dots, Lesson 4 spinners, and Lesson 5 tray/meter/spinner review surfaces.
-- Current AI roadmap status: Phases 1-11 are code-present; current manual Phase 12 character presets are present for existing themes. Phase 4 still needs Firebase AI provisioning/manual AI smoke validation, and Phases 5/7/8/9/10/11/12 still need browser smoke testing.
+- Current AI roadmap status: OpenAI-backed hints, graph Feedback summaries, and generated theme packs now run through Vercel-style API routes in `api/`. Manual AI smoke validation and browser testing are still needed before demo/deploy.
 
 ## Voice, Sound, And Theme Review Loop
 
-- Added a voice layer that keeps provider calls behind Firebase callable Functions:
+- Added a voice layer that keeps provider calls behind a Vercel API route:
   - client voice catalog and request validation live in `src/voice/`
-  - browser code calls `getVoiceClip` through Firebase Functions
-  - `functions/index.js` calls Cartesia server-side, caches MP3s in Storage when available, and returns caption fallback when audio is unavailable
-  - local development uses the Functions emulator at `127.0.0.1:5001`
+  - browser code calls `/api/get-voice-clip`
+  - `api/get-voice-clip.js` calls Cartesia server-side and returns MP3 data URLs when audio is available
+  - local development serves `/api` through the Vite middleware used by `npm run dev`
 - Added opt-in voice controls across Lessons 1–5:
   - replay buttons near important instructional text
   - one-time autoplay only when Voice is on and the relevant section is incomplete
@@ -104,13 +104,13 @@ Concise milestone log for **Counting Adventures**.
 - Updated README/progress docs to reflect the multi-lesson app, agent workflow, and AI theme-pack roadmap.
 - Updated Lessons 2-5 with active-theme visual colors, labels, motifs, selected states, and theme-aware in-lesson chrome.
 - Added shared pressed/selected button feedback so pale lesson buttons visibly change after a learner clicks them.
-- Added a Cartesia-first voice roadmap and the first local voice contract module with theme voice profiles, Lesson 1 clip keys, safety validation, cache keys, and fallback response helpers.
-- Added a Firebase callable scaffold for Cartesia voice clips, Cloud Storage MP3 caching, client fallback handling, and the first opt-in Lesson 1 voice button with captions.
+- Added a Cartesia-first voice roadmap and voice contract modules with theme voice profiles, clip keys, safety validation, and fallback response helpers.
+- Added a Vercel API route for Cartesia voice clips, client fallback handling, and opt-in voice buttons with captions.
 - Added persisted `voiceEnabled` profile preference and a shared app-header Voice On/Off toggle so narration stays opt-in.
 - Expanded opt-in voice buttons to Lesson 1 Anchor Trick, Lesson 1 shoes challenge, Lesson 1 shortcut summary, Lesson 4 spinner intro, and Lesson 5 sample-space/fairness intros.
 - Added one-time autoplay for instruction/tip voice clips when Voice is on, while keeping shortcut-style narration manual and replayable.
 - Added generic correct/try-again voice cues for Lesson 1, Lesson 4, and Lesson 5 challenge feedback so spoken feedback supports the written message without repeating it.
-- Expanded voice to Lessons 2 and 3, added the missing Lesson 5 screen 2 voice hook, and mirrored all new clip keys in the client and Functions catalogs.
+- Expanded voice to Lessons 2 and 3, added the missing Lesson 5 screen 2 voice hook, and mirrored all new clip keys in the client/server voice catalogs.
 - Fixed Lesson 2 resubmission after visual proof: a correct number entered before finishing the visual no longer gets blocked as a duplicate once the visual proof is complete.
 - Clarified Lesson 2 feedback so learners know their answer is correct but they still need to click/build all visual proof orders.
 - Reworked Lesson 1 non-dress character rendering toward generated inline SVG primitives with explicit color slots instead of brittle path tweaks.
@@ -118,16 +118,23 @@ Concise milestone log for **Counting Adventures**.
 - Adjusted Lesson 4 and Lesson 5 spinner labels farther from the center hub.
 - Swapped the app header order so Home appears before the Voice On/Off toggle inside lessons.
 - Added global enabled-button tap sounds.
+- Implemented the first `roadmap/newdirection` bridge: lessons now map to stable knowledge graph node IDs, graph mastery derives from existing lesson progress, and Home Hub renders a themed neural graph overlay above the existing lesson list.
+- Refined the new-direction Home Hub into a black neon schema board: the current Lessons 1-5 build one Counting + Probability schema, with schema-colored dots, glowing lines, hover/focus content, and schema brightness meters.
+- Added graph node Feedback for in-progress, completed, and mastered nodes only; Feedback opens from the node detail panel and regenerates automatically when the learner's progress/context cache key changes.
+- Migrated AI hint generation, AI theme generation, graph Feedback summaries, and Cartesia voice generation off Firebase Cloud Functions and onto Vercel-style API routes.
+- Removed the original one-lesson profile compatibility field from app reads/writes. User progress now lives only in `users/{uid}.lessons[lessonId]`.
 
 ## Current Status
 
 - Lessons 1–5 exist in the registry.
-- Lesson 1 supports validated manual theme packs and has AI generation code behind a safe fallback path.
+- Lesson 1 supports validated manual theme packs and has Vercel-backed AI generation code behind a safe fallback path.
 - Lessons 6–10 appear as coming-soon placeholders through Home Hub pagination.
-- Latest `npm run lint` and `npm run build` pass after the voice, sound, and cross-lesson theme-state pass.
+- Home Hub now includes a black neon knowledge graph for Lessons 1-10; Lessons 1-5 derive active/mastered states from existing progress and Lessons 6-10 remain locked coming-soon nodes.
+- Knowledge Graph node Feedback is present locally, gated to in-progress/completed/mastered nodes, and keyed by node, status, progress ratio, tried contexts, lesson title, and active theme.
+- Latest `npm run build` passes after the progress compatibility cleanup.
 - Vite still reports the existing large chunk warning.
 - Live Firebase site may need redeploy to include recent curriculum and theme changes.
-- Voice work has a server/client scaffold and Lesson 1-5 UI integration; real Cartesia generation still needs full emulator/deploy QA, cache-rights confirmation, Storage behavior confirmation, and selected production voice IDs.
+- Voice work has Lesson 1-5 UI integration and a Cartesia-backed Vercel API route; production voice still needs deploy QA and selected production voice IDs.
 - Shared per-lesson theme-pack contracts for Lessons 2–5 remain future architecture work; today’s implementation uses bridge helpers plus shared theme-state tokens.
 
 ## Next
@@ -140,5 +147,7 @@ Concise milestone log for **Counting Adventures**.
 - Manually test every theme picker option to verify colors, motifs, labels, hub cards, and Lesson 2-5 local theme copy/change as expected.
 - Manually smoke-test Voice Off/Voice On across Lessons 1–5, including captions, autoplay gating, fallback audio, and feedback cue timing.
 - Decide whether to add dedicated `Lesson2ThemePack`, `Lesson3ThemePack`, `Lesson4ThemePack`, and `Lesson5ThemePack` contracts instead of deriving later lessons from the Lesson 1 theme pack.
+- Manually smoke-test the new Home Hub graph on phone and iPad widths with incomplete, in-progress, completed, and mastered lesson profiles.
+- Manually smoke-test Knowledge Graph Feedback opening, cached reuse, and automatic regeneration after progress changes.
 - Add a Vitest suite for core logic and registry integrity.
 - Run `review-lesson` before major demos.

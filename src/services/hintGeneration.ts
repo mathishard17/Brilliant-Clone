@@ -1,86 +1,76 @@
-import { getAI, getGenerativeModel, GoogleAIBackend } from 'firebase/ai'
-import { app } from '../lib/firebase'
+import type { StudentMemoryHintSummary } from '../utils/studentMemory'
+import { postAiEndpoint } from './aiBackend'
 
-const DEFAULT_MODEL = 'gemini-2.5-flash'
 const MAX_HINT_LENGTH = 180
 
 export interface HintRequest {
+  lessonId: string
+  conceptKey: string
+  conceptLabel: string
   prompt: string
   context: string
   fallbackHint: string
   blockedAnswerTerms?: readonly string[]
+  learnerAnswer?: string
+  attemptedAnswers?: readonly string[]
+  wrongAttempts?: number
+  studentMemory?: StudentMemoryHintSummary
 }
 
 interface HintResponse {
   hint: string
-  shouldRevealAnswer: false
+  misconception?: string
+  source: 'generated' | 'fallback'
+  debugError?: string
 }
 
-function buildPrompt({ prompt, context, blockedAnswerTerms = [] }: HintRequest): string {
-  const blocked = blockedAnswerTerms.length > 0 ? blockedAnswerTerms.join(', ') : 'the final answer'
-
-  return `Create one short hint for a 3rd-grade math learner.
-
-Problem prompt:
-${prompt}
-
-Context:
-${context}
-
-Rules:
-- Do not reveal the final answer.
-- Do not include any of these answer terms: ${blocked}.
-- Do not include equations or numeric digits.
-- Keep the hint under 25 words.
-- Return JSON only. Do not use Markdown.
-
-Use this exact JSON shape:
-{
-  "hint": "one short hint",
-  "shouldRevealAnswer": false
-}`
-}
-
-function isSafeHintResponse(
+function getHintValidationIssue(
   value: unknown,
   blockedAnswerTerms: readonly string[] = [],
-): value is HintResponse {
-  if (!value || typeof value !== 'object') return false
+): string | null {
+  if (!value || typeof value !== 'object') return 'Hint API response was not an object.'
 
   const response = value as Partial<HintResponse>
-  if (response.shouldRevealAnswer !== false) return false
-  if (typeof response.hint !== 'string') return false
+  if (typeof response.hint !== 'string') return 'Hint API response was missing hint text.'
+  if (response.source !== 'generated' && response.source !== 'fallback') return 'Hint API response had an invalid source.'
 
   const hint = response.hint.trim()
-  if (hint.length === 0 || hint.length > MAX_HINT_LENGTH) return false
-  if (/\d/.test(hint)) return false
+  if (hint.length === 0) return 'Hint API response was empty.'
+  if (hint.length > MAX_HINT_LENGTH) return 'Hint API response was too long.'
 
   const normalizedHint = hint.toLowerCase()
-  return !blockedAnswerTerms.some((term) => {
+  const blockedTerm = blockedAnswerTerms.find((term) => {
     const normalizedTerm = term.trim().toLowerCase()
     return normalizedTerm.length > 0 && normalizedHint.includes(normalizedTerm)
   })
+  if (blockedTerm) return `Hint API response included blocked answer term: ${blockedTerm}.`
+
+  return null
 }
 
-export async function generateSafeHint(request: HintRequest): Promise<string> {
+export async function generateSafeHint(request: HintRequest): Promise<HintResponse> {
   try {
-    const ai = getAI(app, { backend: new GoogleAIBackend() })
-    const model = getGenerativeModel(ai, {
-      model: import.meta.env.VITE_FIREBASE_AI_MODEL || DEFAULT_MODEL,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.3,
-        maxOutputTokens: 200,
-      },
-    })
-    const result = await model.generateContent(buildPrompt(request))
-    const parsed = JSON.parse(result.response.text()) as unknown
-    if (isSafeHintResponse(parsed, request.blockedAnswerTerms)) {
-      return parsed.hint.trim()
+    const result = await postAiEndpoint<HintRequest, HintResponse>('/api/generate-ai-hint', request)
+    const validationIssue = getHintValidationIssue(result, request.blockedAnswerTerms)
+    if (!validationIssue) {
+      return {
+        hint: result.hint.trim(),
+        misconception: result.misconception,
+        source: result.source,
+        debugError: result.debugError,
+      }
     }
-  } catch {
+    return {
+      hint: request.fallbackHint,
+      source: 'fallback',
+      debugError: validationIssue,
+    }
+  } catch (error) {
     // Hints are optional; fallback copy keeps the lesson usable without AI.
+    return {
+      hint: request.fallbackHint,
+      source: 'fallback',
+      debugError: error instanceof Error ? error.message : 'Unknown hint request error.',
+    }
   }
-
-  return request.fallbackHint
 }

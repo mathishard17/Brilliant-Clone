@@ -4,6 +4,7 @@ import './styles.css'
 import { ChallengeQuestion } from '../../components/ChallengeQuestion'
 import { ClickthroughMiniLesson } from '../../components/ClickthroughMiniLesson'
 import { FeedbackBanner } from '../../components/FeedbackBanner'
+import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
@@ -13,6 +14,7 @@ import { useSectionState } from '../../hooks/useSectionState'
 import { lesson1ThemeStyle, resolveLesson1Theme } from '../../themes/themeResolver'
 import { LESSON_3_ID, type ChallengeMiniLessonPage } from '../../types/lesson'
 import { playCompletionTada } from '../../utils/completionSound'
+import { getProfileLessonProgress } from '../../utils/lessonProgress'
 import {
   getLesson3ContainerLabel,
   getLesson3PairLabel,
@@ -42,6 +44,29 @@ interface Lesson3SectionProps {
 interface FoundTreasureBag {
   key: string
   treasures: Lesson3TreasureId[]
+}
+
+interface Lesson3ChallengeState {
+  answerInput: string
+  attemptedAnswers: string[]
+  submitted: boolean
+  isCorrect: boolean | null
+  wrongAttempts: number
+}
+
+interface Lesson3SameBagState {
+  [key: string]: unknown
+  pageIndex: number
+}
+
+interface Lesson3CountingShortcutState {
+  [key: string]: unknown
+  repeatsCollapsed: boolean
+}
+
+interface Lesson3FinalSortState {
+  [key: string]: unknown
+  answers: Record<string, Lesson3SortAnswer>
 }
 
 interface Lesson3TreasureVisual {
@@ -311,6 +336,17 @@ function makeTreasureKey(treasureIds: readonly Lesson3TreasureId[]) {
   return sortTreasureIds(treasureIds).join('-')
 }
 
+function lesson3ChallengeSectionId(pageId: string) {
+  return `lesson-3-challenge-${pageId}`
+}
+
+function isLesson3ChallengeCorrect(
+  sectionState: Record<string, Record<string, unknown>>,
+  pageId: string,
+) {
+  return sectionState[lesson3ChallengeSectionId(pageId)]?.isCorrect === true
+}
+
 function treasureCssStyle(visual: Lesson3TreasureVisual): CSSProperties {
   return {
     '--lesson3-treasure-fill': visual.fill,
@@ -396,42 +432,62 @@ function TreasurePair({
 
 function ChallengeBlock({
   page,
-  onCorrect,
 }: {
   page: ChallengeMiniLessonPage<number>
-  onCorrect?: () => void
 }) {
-  const { profile } = useLesson()
+  const { profile, recordStudentMemoryEvent, updateLesson } = useLesson()
+  const activeLesson = getProfileLessonProgress(profile)
   const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
-  const [state, setState] = useSectionState(`lesson-3-challenge-${page.id}`, {
+  const sectionId = lesson3ChallengeSectionId(page.id)
+  const savedState = activeLesson.sectionState[sectionId] as Partial<Lesson3ChallengeState> | undefined
+  const state: Lesson3ChallengeState = {
     answerInput: '',
     attemptedAnswers: [] as string[],
-    repeatAnswer: '',
     submitted: false,
     isCorrect: null as boolean | null,
     wrongAttempts: 0,
-  })
-  const { answerInput, attemptedAnswers, repeatAnswer, submitted, isCorrect, wrongAttempts } = state
+    ...savedState,
+  }
+  const { attemptedAnswers, submitted, isCorrect, wrongAttempts } = state
+  const [answerInput, setAnswerInput] = useState(state.answerInput)
+  const [repeatAnswer, setRepeatAnswer] = useState('')
 
   function handleSubmit() {
     const normalizedAnswer = answerInput.trim()
     if (attemptedAnswers.includes(normalizedAnswer)) {
-      setState({ repeatAnswer: normalizedAnswer })
+      setRepeatAnswer(normalizedAnswer)
       return
     }
 
     const correct = Number(answerInput) === page.answer
-    setState({
-      attemptedAnswers: [...attemptedAnswers, normalizedAnswer],
-      repeatAnswer: '',
-      submitted: true,
-      isCorrect: correct,
-      wrongAttempts: correct ? wrongAttempts : wrongAttempts + 1,
+    const nextWrongAttempts = correct ? wrongAttempts : wrongAttempts + 1
+    void updateLesson({
+      sectionState: {
+        [sectionId]: {
+          answerInput,
+          attemptedAnswers: [...attemptedAnswers, normalizedAnswer],
+          submitted: true,
+          isCorrect: correct,
+          wrongAttempts: nextWrongAttempts,
+        },
+      },
     })
+    setRepeatAnswer('')
+    void recordStudentMemoryEvent({
+      type: 'challengeAttempt',
+      lessonId: LESSON_3_ID,
+      conceptKey: `lesson-3-${page.id}`,
+      label: 'Groups without order',
+      outcome: correct ? 'correct' : 'incorrect',
+      learnerAnswer: normalizedAnswer,
+      correctAnswer: String(page.answer),
+    }).catch(() => undefined)
     setFeedbackVoiceToken((token) => token + 1)
-    if (correct) {
-      onCorrect?.()
-    }
+  }
+
+  function handleAnswerChange(value: string) {
+    setAnswerInput(value)
+    setRepeatAnswer('')
   }
 
   return (
@@ -440,10 +496,23 @@ function ChallengeBlock({
       <ChallengeQuestion
         prompt={page.prompt}
         value={answerInput}
-        onChange={(value) => setState({ answerInput: value, repeatAnswer: '' })}
+        onChange={handleAnswerChange}
         onSubmit={handleSubmit}
         submitted={submitted}
         allowRetry={submitted && isCorrect === false}
+      />
+      <HintButton
+        lessonId={LESSON_3_ID}
+        conceptKey={`lesson-3-${page.id}`}
+        conceptLabel="Groups without order"
+        prompt={page.prompt}
+        context={page.body ?? 'The learner is counting groups where order does not make a new group.'}
+        fallbackHint={page.feedback?.tryAgain ?? 'Look for groups that use the same items, even if they appear in a different order.'}
+        blockedAnswerTerms={[String(page.answer)]}
+        learnerAnswer={answerInput}
+        attemptedAnswers={attemptedAnswers}
+        wrongAttempts={wrongAttempts}
+        disabled={!submitted || isCorrect === true}
       />
       {repeatAnswer && (
         <FeedbackBanner
@@ -483,25 +552,44 @@ function TreasureBagPicker({
   themeCopy,
   treasureStyles,
 }: Lesson3SectionProps & { themeCopy: Lesson3ThemeCopy; treasureStyles: Lesson3TreasureStyles }) {
-  const [state, setState] = useSectionState('lesson-3-treasure-bag-picker', {
-    selectedTreasures: [] as Lesson3TreasureId[],
-    foundBags: [] as FoundTreasureBag[],
+  const { profile, updateLesson } = useLesson()
+  const activeLesson = getProfileLessonProgress(profile)
+  const sectionId = 'lesson-3-treasure-bag-picker'
+  const savedState = activeLesson.sectionState[sectionId] as
+    | { foundBags?: FoundTreasureBag[] }
+    | undefined
+  const foundBags = savedState?.foundBags ?? []
+  const [selectedTreasures, setSelectedTreasures] = useState<Lesson3TreasureId[]>([])
+  const [status, setStatus] = useState({
     statusMessage: themeCopy.initialStatus,
     statusVariant: 'info' as 'info' | 'success' | 'error',
   })
-  const { selectedTreasures, foundBags, statusMessage, statusVariant } = state
+
+  function saveFoundBags(nextFoundBags: FoundTreasureBag[]) {
+    void updateLesson({
+      sectionState: {
+        [sectionId]: {
+          foundBags: nextFoundBags,
+        },
+      },
+    })
+  }
+
+  function updateStatus(
+    statusVariant: 'info' | 'success' | 'error',
+    statusMessage: string,
+  ) {
+    setStatus({ statusMessage, statusVariant })
+  }
 
   function selectTreasure(treasureId: Lesson3TreasureId) {
     if (selectedTreasures.includes(treasureId) || selectedTreasures.length >= 2) return
 
     const nextSelection = [...selectedTreasures, treasureId]
+    setSelectedTreasures(nextSelection)
 
     if (nextSelection.length === 1) {
-      setState({
-        selectedTreasures: nextSelection,
-        statusVariant: 'info',
-        statusMessage: themeCopy.firstPickStatus,
-      })
+      updateStatus('info', themeCopy.firstPickStatus)
       return
     }
 
@@ -510,32 +598,26 @@ function TreasureBagPicker({
     const duplicate = foundBags.some((bag) => bag.key === key)
 
     if (duplicate) {
-      setState({
-        selectedTreasures: nextSelection,
-        statusVariant: 'error',
-        statusMessage: themeCopy.duplicateStatus(
+      updateStatus(
+        'error',
+        themeCopy.duplicateStatus(
           princessName,
           getLesson3PairLabel(themeCopy, sortedTreasures),
         ),
-      })
+      )
       return
     }
 
-    setState({
-      selectedTreasures: nextSelection,
-      foundBags: [...foundBags, { key, treasures: sortedTreasures }],
-      statusVariant: 'success',
-      statusMessage: themeCopy.newFoundStatus(getLesson3PairLabel(themeCopy, sortedTreasures)),
-    })
+    saveFoundBags([...foundBags, { key, treasures: sortedTreasures }])
+    updateStatus('success', themeCopy.newFoundStatus(getLesson3PairLabel(themeCopy, sortedTreasures)))
   }
 
   function clearBag() {
-    setState({
-      selectedTreasures: [],
-      statusVariant: 'info',
-      statusMessage: themeCopy.nextContainerStatus,
-    })
+    setSelectedTreasures([])
+    updateStatus('info', themeCopy.nextContainerStatus)
   }
+
+  const { statusMessage, statusVariant } = status
 
   return (
     <div className="treasure-bag" aria-label={`${themeCopy.containerPlural} picker`}>
@@ -850,11 +932,11 @@ function SortCard({
 export function Lesson3TreasureBagPicker({ princessName }: Lesson3SectionProps) {
   const { updateScreen, lessonStyle, profile, themeCopy, treasureStyles } = useLesson3Screen()
   const section = lesson3TreasureBagSection(themeCopy)
-  const pickerState = profile.lesson.sectionState['lesson-3-treasure-bag-picker'] as
-    | { foundBags?: FoundTreasureBag[]; selectedTreasures?: Lesson3TreasureId[] }
+  const activeLesson = getProfileLessonProgress(profile)
+  const pickerState = activeLesson.sectionState['lesson-3-treasure-bag-picker'] as
+    | { foundBags?: FoundTreasureBag[] }
     | undefined
-  const pickerHasStarted =
-    (pickerState?.foundBags?.length ?? 0) > 0 || (pickerState?.selectedTreasures?.length ?? 0) > 0
+  const pickerHasStarted = (pickerState?.foundBags?.length ?? 0) > 0
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-3" style={lessonStyle}>
@@ -874,6 +956,10 @@ export function Lesson3TreasureBagPicker({ princessName }: Lesson3SectionProps) 
         themeCopy={themeCopy}
         treasureStyles={treasureStyles}
       />
+      <p className="treasure-bag__scaffold-note">
+        Build a few {themeCopy.containerPlural} if it helps. You do not need to find every
+        possible {themeCopy.containerSingular} before continuing.
+      </p>
       <LessonButton
         label={section.nextLabel}
         onClick={() => void updateScreen(2)}
@@ -884,9 +970,12 @@ export function Lesson3TreasureBagPicker({ princessName }: Lesson3SectionProps) 
 
 export function Lesson3SameBagLesson() {
   const { updateScreen, lessonStyle, profile, themeCopy, treasureStyles } = useLesson3Screen()
-  const [state, setState] = useSectionState('lesson-3-same-bag', { pageIndex: 0 })
-  const { pageIndex } = state
   const miniLesson = lesson3SameBagMiniLesson(themeCopy)
+  const [sameBagState, setSameBagState] = useSectionState<Lesson3SameBagState>(
+    'lesson-3-same-bag',
+    { pageIndex: 0 },
+  )
+  const pageIndex = Math.min(sameBagState.pageIndex, miniLesson.pages.length - 1)
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-3" style={lessonStyle}>
@@ -904,7 +993,7 @@ export function Lesson3SameBagLesson() {
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
         currentPageIndex={pageIndex}
-        onPageChange={(nextPageIndex) => setState({ pageIndex: nextPageIndex })}
+        onPageChange={(nextPageIndex) => setSameBagState({ pageIndex: nextPageIndex })}
         onComplete={() => void updateScreen(3)}
         nextLabel="Next"
         completeLabel="Count Without Repeats"
@@ -923,13 +1012,15 @@ export function Lesson3SameBagLesson() {
 }
 
 export function Lesson3CountingShortcut({ princessName }: Lesson3SectionProps) {
-  const { updateScreen, lessonStyle, themeCopy, treasureStyles } = useLesson3Screen()
-  const [state, setState] = useSectionState('lesson-3-counting-shortcut', {
-    challengeSolved: false,
-    repeatsCollapsed: false,
-  })
-  const { challengeSolved, repeatsCollapsed } = state
+  const { updateScreen, lessonStyle, profile, themeCopy, treasureStyles } = useLesson3Screen()
+  const activeLesson = getProfileLessonProgress(profile)
   const section = lesson3CountingSection(themeCopy)
+  const challenge = lesson3CountingChallenge(princessName, themeCopy)
+  const challengeSolved = isLesson3ChallengeCorrect(activeLesson.sectionState, challenge.id)
+  const [shortcutState, setShortcutState] = useSectionState<Lesson3CountingShortcutState>(
+    'lesson-3-counting-shortcut',
+    { repeatsCollapsed: false },
+  )
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-3" style={lessonStyle}>
@@ -937,16 +1028,15 @@ export function Lesson3CountingShortcut({ princessName }: Lesson3SectionProps) {
       <h1>{section.heading}</h1>
       <LessonText text={section.body(princessName)} />
       <CountingShortcutVisual
-        collapsed={repeatsCollapsed}
-        onToggleCollapsed={() => setState({ repeatsCollapsed: !repeatsCollapsed })}
+        collapsed={shortcutState.repeatsCollapsed}
+        onToggleCollapsed={() =>
+          setShortcutState({ repeatsCollapsed: !shortcutState.repeatsCollapsed })
+        }
         showShortcut={challengeSolved}
         themeCopy={themeCopy}
         treasureStyles={treasureStyles}
       />
-      <ChallengeBlock
-        page={lesson3CountingChallenge(princessName, themeCopy)}
-        onCorrect={() => setState({ challengeSolved: true })}
-      />
+      <ChallengeBlock page={challenge} />
       <LessonButton
         label={section.nextLabel}
         onClick={() => void updateScreen(4)}
@@ -957,11 +1047,10 @@ export function Lesson3CountingShortcut({ princessName }: Lesson3SectionProps) {
 }
 
 export function Lesson3RoyalBagChallenge({ princessName }: Lesson3SectionProps) {
-  const { updateScreen, lessonStyle, themeCopy, treasureStyles } = useLesson3Screen()
-  const [state, setState] = useSectionState('lesson-3-royal-bag-challenge', {
-    challengeSolved: false,
-  })
-  const { challengeSolved } = state
+  const { updateScreen, lessonStyle, profile, themeCopy, treasureStyles } = useLesson3Screen()
+  const activeLesson = getProfileLessonProgress(profile)
+  const challenge = lesson3RoyalBagChallenge(princessName, themeCopy)
+  const challengeSolved = isLesson3ChallengeCorrect(activeLesson.sectionState, challenge.id)
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-3" style={lessonStyle}>
@@ -973,10 +1062,7 @@ export function Lesson3RoyalBagChallenge({ princessName }: Lesson3SectionProps) 
         themeCopy={themeCopy}
         treasureStyles={treasureStyles}
       />
-      <ChallengeBlock
-        page={lesson3RoyalBagChallenge(princessName, themeCopy)}
-        onCorrect={() => setState({ challengeSolved: true })}
-      />
+      <ChallengeBlock page={challenge} />
       <LessonButton
         label={themeCopy.finalNextLabel}
         onClick={() => void updateScreen(5)}
@@ -987,21 +1073,42 @@ export function Lesson3RoyalBagChallenge({ princessName }: Lesson3SectionProps) 
 }
 
 export function Lesson3FinalSort({ princessName }: Lesson3SectionProps) {
-  const { updateLesson, updateScreen, lessonStyle, themeCopy } = useLesson3Screen()
-  const [state, setState] = useSectionState('lesson-3-final-sort', {
-    answers: {} as Record<string, Lesson3SortAnswer>,
-  })
-  const { answers } = state
+  const { updateLesson, updateScreen, lessonStyle, profile, themeCopy } = useLesson3Screen()
+  const activeLesson = getProfileLessonProgress(profile)
+  const [finalSortState, setFinalSortState] = useSectionState<Lesson3FinalSortState>(
+    'lesson-3-final-sort',
+    { answers: {} },
+  )
+  const [isFinishing, setIsFinishing] = useState(false)
   const sortCards = lesson3FinalSortCards(themeCopy)
-  const allCorrect = sortCards.every((card) => answers[card.id] === card.correctAnswer)
+  const answers = finalSortState.answers
+  const allCardsCorrect = sortCards.every((card) => answers[card.id] === card.correctAnswer)
+  const allCorrect = activeLesson.completed || allCardsCorrect
 
   function setCardAnswer(cardId: string, answer: Lesson3SortAnswer) {
-    setState({ answers: { ...answers, [cardId]: answer } })
+    setFinalSortState({ answers: { ...answers, [cardId]: answer } })
   }
 
   async function handleFinish() {
+    if (isFinishing) return
+    setIsFinishing(true)
+    if (activeLesson.completed) {
+      try {
+        await updateScreen(0)
+      } catch (error) {
+        setIsFinishing(false)
+        throw error
+      }
+      return
+    }
+
     playCompletionTada()
-    await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    try {
+      await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    } catch (error) {
+      setIsFinishing(false)
+      throw error
+    }
   }
 
   return (
@@ -1025,7 +1132,11 @@ export function Lesson3FinalSort({ princessName }: Lesson3SectionProps) {
           message={lesson3CompletionMessage(princessName, themeCopy)}
         />
       )}
-      <LessonButton label="Finish Lesson" onClick={handleFinish} disabled={!allCorrect} />
+      <LessonButton
+        label={activeLesson.completed ? 'Return to Academy' : 'Finish Lesson'}
+        onClick={handleFinish}
+        disabled={!allCorrect || isFinishing}
+      />
     </section>
   )
 }

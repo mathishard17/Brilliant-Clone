@@ -11,11 +11,10 @@ export type Lesson5OutcomeKind = 'crown' | 'dragon' | 'jewel' | 'star' | 'shield
 export interface Lesson5SpinnerSpace {
   id: string
   kind: Lesson5OutcomeKind
-  label: string
   winner: Lesson5Player
 }
 
-export interface Lesson5VisualizationSection {
+interface Lesson5VisualizationSection {
   id: string
   heading: string
   body: (princessName: string) => string
@@ -26,28 +25,26 @@ export type Lesson5ChallengePage = ChallengeMiniLessonPage<number>
 export type Lesson5MiniLessonPage = ExplanationMiniLessonPage | Lesson5ChallengePage
 
 export const spinnerInspectorSpaces: Lesson5SpinnerSpace[] = [
-  { id: 'crown-1', kind: 'crown', label: 'Crown 1', winner: 'princess' },
-  { id: 'crown-2', kind: 'crown', label: 'Crown 2', winner: 'princess' },
-  { id: 'dragon', kind: 'dragon', label: 'Dragon', winner: 'dragon' },
-  { id: 'jewel', kind: 'jewel', label: 'Jewel', winner: 'none' },
+  { id: 'crown-1', kind: 'crown', winner: 'princess' },
+  { id: 'crown-2', kind: 'crown', winner: 'princess' },
+  { id: 'dragon', kind: 'dragon', winner: 'dragon' },
+  { id: 'jewel', kind: 'jewel', winner: 'none' },
 ]
 
-export const unfairSpinnerSpaces: Lesson5SpinnerSpace[] = spinnerInspectorSpaces
-
 export const builderStartingSpaces: Lesson5SpinnerSpace[] = [
-  { id: 'builder-1', kind: 'crown', label: 'Crown', winner: 'princess' },
-  { id: 'builder-2', kind: 'crown', label: 'Crown', winner: 'princess' },
-  { id: 'builder-3', kind: 'crown', label: 'Crown', winner: 'princess' },
-  { id: 'builder-4', kind: 'dragon', label: 'Dragon', winner: 'dragon' },
+  { id: 'builder-1', kind: 'crown', winner: 'princess' },
+  { id: 'builder-2', kind: 'crown', winner: 'princess' },
+  { id: 'builder-3', kind: 'crown', winner: 'princess' },
+  { id: 'builder-4', kind: 'dragon', winner: 'dragon' },
 ]
 
 export const sixSpaceFairSpinnerSpaces: Lesson5SpinnerSpace[] = [
-  { id: 'star-1', kind: 'star', label: 'Star', winner: 'princess' },
-  { id: 'star-2', kind: 'star', label: 'Star', winner: 'princess' },
-  { id: 'star-3', kind: 'star', label: 'Star', winner: 'princess' },
-  { id: 'shield-1', kind: 'shield', label: 'Shield', winner: 'knight' },
-  { id: 'shield-2', kind: 'shield', label: 'Shield', winner: 'knight' },
-  { id: 'shield-3', kind: 'shield', label: 'Shield', winner: 'knight' },
+  { id: 'star-1', kind: 'star', winner: 'princess' },
+  { id: 'star-2', kind: 'star', winner: 'princess' },
+  { id: 'star-3', kind: 'star', winner: 'princess' },
+  { id: 'shield-1', kind: 'shield', winner: 'knight' },
+  { id: 'shield-2', kind: 'shield', winner: 'knight' },
+  { id: 'shield-3', kind: 'shield', winner: 'knight' },
 ]
 
 export const lesson5Sections = {
@@ -55,32 +52,28 @@ export const lesson5Sections = {
     id: 'lesson-5-sample-space-intro',
     heading: '🎪 Royal Carnival Spinner',
     body: (princessName) =>
-      `Welcome to the Royal Carnival, ${princessName}! The princess made a spinner game, but the dragon says, "Wait! Does everyone have the same chance to win?" Tap each equal spinner space to collect every possible landing spot.`,
+      `Welcome to the Royal Carnival, ${princessName}! The princess made a spinner game, but the dragon says, "Wait! Does everyone have the same chance to win?" You can tap equal spinner spaces to collect landing spots in the tray while you think.`,
     visualization: 'carnival-spinner',
   },
   fairnessCheck: {
     id: 'lesson-5-fairness-check',
     heading: '⚖️ Fair or Unfair?',
-    body: (_princessName) => {
-      void _princessName
-      return 'Now the rules are clear: **Princess wins on Crown**, **Dragon wins on Dragon**, and **Jewel means no one wins**. Compare the winning spaces to decide if the game is fair.'
-    },
+    body: () =>
+      'Now the rules are clear: **Princess wins on Crown**, **Dragon wins on Dragon**, and **Jewel means no one wins**. Compare the winning spaces to decide if the game is fair.',
     visualization: 'carnival-spinner',
   },
   fairSpinnerBuilder: {
     id: 'lesson-5-fair-spinner-builder',
     heading: '🎨 Fix the Carnival Game',
     body: (princessName) =>
-      `${princessName}, this booth starts with **Crown, Crown, Crown, Dragon**. Tap spaces to repaint them. Can you make Princess and Dragon have the same chance to win?`,
+      `${princessName}, this booth starts with **Crown, Crown, Crown, Dragon**. Use the builder to test a repaint if it helps. How can Princess and Dragon get the same chance to win?`,
     visualization: 'fair-spinner-builder',
   },
   royalReview: {
     id: 'lesson-5-royal-review',
     heading: '🏰 Royal Review',
-    body: (_princessName) => {
-      void _princessName
-      return 'A sample space can come from more than one spinner. Two tiny royal spinners make a little grid of everything that could happen.'
-    },
+    body: () =>
+      'A sample space can come from more than one spinner. Two tiny royal spinners make a little grid of everything that could happen.',
     visualization: 'two-spinner-sample-space',
   },
 } satisfies Record<string, Lesson5VisualizationSection>
@@ -101,7 +94,7 @@ export function challenge1(princessName: string): Lesson5ChallengePage {
   }
 }
 
-export function challenge2(princessName: string): Lesson5ChallengePage {
+function challenge2(princessName: string): Lesson5ChallengePage {
   return {
     id: 'lesson-5-count-favorable-outcomes',
     type: 'challenge',
@@ -152,7 +145,7 @@ export function challenge4(princessName: string): Lesson5ChallengePage {
   }
 }
 
-export function challenge5(): Lesson5ChallengePage {
+function challenge5(): Lesson5ChallengePage {
   return {
     id: 'lesson-5-check-built-game',
     type: 'challenge',
@@ -169,7 +162,7 @@ export function challenge5(): Lesson5ChallengePage {
   }
 }
 
-export function challenge6(princessName: string): Lesson5ChallengePage {
+function challenge6(princessName: string): Lesson5ChallengePage {
   return {
     id: 'lesson-5-two-spinner-fairness',
     type: 'challenge',

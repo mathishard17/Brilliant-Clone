@@ -1,4 +1,5 @@
 export * from './voiceCache'
+export * from './voiceCacheInvalidation'
 export * from './voiceClips'
 export * from './voiceProfiles'
 export * from './voiceRequests'

@@ -24,6 +24,12 @@
   border-color: var(--lesson3-treasure-border, var(--theme-accent, #7c3aed));
 }
 
+.lesson-3 .treasure-bag__scaffold-note {
+  margin: 0.25rem 0 1rem;
+  color: var(--theme-hint-text, var(--color-text-muted));
+  font-weight: 700;
+}
+
 .lesson-3 .treasure-bag__choice,
 .lesson-3 .smaller-vault__treasure {
   background: var(--lesson3-treasure-bg, var(--theme-button-bg, #fff));

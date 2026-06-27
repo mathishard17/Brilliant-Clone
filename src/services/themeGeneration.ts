@@ -1,29 +1,30 @@
-import { httpsCallable } from 'firebase/functions'
-import { functions } from '../lib/firebase'
 import { LESSON_1_ID } from '../types/lesson'
 import { DEFAULT_LESSON_1_THEMES, ROYAL_LESSON_1_THEME } from '../themes/defaultThemes'
 import type { Lesson1ThemePack, ThemePreference } from '../themes/themeTypes'
-import { isValidLesson1ThemePack } from '../themes/themeValidation'
+import {
+  getLesson1ThemeValidationIssues,
+  isValidLesson1ThemePack,
+  normalizeLesson1ThemePack,
+} from '../themes/themeValidation'
+import { postAiEndpoint } from './aiBackend'
 
 export interface Lesson1ThemeGenerationResult {
   themePack: Lesson1ThemePack
   source: 'generated' | 'fallback'
+  debugError?: string
 }
 
 interface GenerateCustomThemeRequest {
   preference: ThemePreference
   themeIdea?: string
+  baseThemePack: Lesson1ThemePack
 }
 
 interface GenerateCustomThemeResponse {
-  themePack: Lesson1ThemePack
+  themePack: unknown
   source: 'generated' | 'fallback'
+  debugError?: string
 }
-
-const generateCustomThemeCallable = httpsCallable<
-  GenerateCustomThemeRequest,
-  GenerateCustomThemeResponse
->(functions, 'generateCustomTheme')
 
 export async function generateLesson1ThemePack(
   preference: ThemePreference,
@@ -32,21 +33,31 @@ export async function generateLesson1ThemePack(
   const fallback = DEFAULT_LESSON_1_THEMES[preference] ?? ROYAL_LESSON_1_THEME
 
   try {
-    const result = await generateCustomThemeCallable({
+    const result = await postAiEndpoint<GenerateCustomThemeRequest, GenerateCustomThemeResponse>('/api/generate-custom-theme', {
       preference,
       themeIdea: customIdea,
+      baseThemePack: fallback,
     })
-    if (isValidLesson1ThemePack(result.data.themePack)) {
+    const themePack = normalizeLesson1ThemePack(result.themePack, fallback)
+    if (isValidLesson1ThemePack(themePack)) {
       return {
-        themePack: result.data.themePack,
-        source: result.data.source === 'generated' ? 'generated' : 'fallback',
+        themePack,
+        source: result.source === 'generated' ? 'generated' : 'fallback',
+        debugError: result.debugError,
       }
     }
-  } catch {
-    // AI personalization is optional; fall back silently so lessons never block.
+    return {
+      themePack: fallback,
+      source: 'fallback',
+      debugError: result.debugError ?? `Theme API response failed client validation: ${getLesson1ThemeValidationIssues(themePack).join('; ')}`,
+    }
+  } catch (error) {
+    return {
+      themePack: fallback,
+      source: 'fallback',
+      debugError: error instanceof Error ? error.message : 'Unknown theme request error.',
+    }
   }
-
-  return { themePack: fallback, source: 'fallback' }
 }
 
 export function lesson1ThemeCacheKey() {

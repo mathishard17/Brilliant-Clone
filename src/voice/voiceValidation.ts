@@ -110,15 +110,3 @@ export function validateLessonVoiceClip(
 
   return result(errors)
 }
-
-export function validateVoiceCatalog(
-  profiles: readonly ThemeVoiceProfile[],
-  clips: readonly LessonVoiceClip[],
-): VoiceValidationResult {
-  const errors = [
-    ...profiles.flatMap((profile) => validateThemeVoiceProfile(profile).errors),
-    ...clips.flatMap((clip) => validateLessonVoiceClip(clip).errors),
-  ]
-
-  return result(errors)
-}

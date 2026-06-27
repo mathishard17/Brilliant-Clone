@@ -38,7 +38,7 @@ export function createLesson2ThemeText(theme: Lesson1ThemePack): Lesson2ThemeTex
   }
 }
 
-export interface Lesson2VisualizationSection {
+interface Lesson2VisualizationSection {
   id: string
   heading: string
   body: (princessName: string) => string

@@ -146,21 +146,24 @@ function deriveItemStyleFromLabel(
   return undefined
 }
 
-export function getLesson1ThemeItemStyle(
+function getLesson1ThemeItemStyle(
   visual: Lesson1ThemeVisual,
   id: string,
   override?: ThemeItemStyle,
   label?: string,
 ): ClosetItemStyle {
-  const baseStyle = visual.character === 'astronaut'
-    ? SPACE_ITEM_STYLES[id] ?? getClosetItemStyle(id)
-    : getClosetItemStyle(id)
-  const labelStyle = override ?? deriveItemStyleFromLabel(label, id, visual)
+  const baseStyle = getClosetItemStyle(id)
+  const labelStyle = override ?? (
+    visual.character === 'astronaut'
+      ? SPACE_ITEM_STYLES[id]
+      : deriveItemStyleFromLabel(label, id, visual)
+  )
 
   return {
     ...baseStyle,
     ...labelStyle,
-    heartColor: labelStyle?.heartColor ?? baseStyle.heartColor ?? baseStyle.border ?? visual.motifPrimary,
+    label: label ?? baseStyle.label,
+    heartColor: labelStyle?.heartColor ?? baseStyle.heartColor ?? labelStyle?.border ?? baseStyle.border ?? visual.motifPrimary,
     motifShape: labelStyle?.motifShape ?? baseStyle.motifShape ?? getCategoryMotifShape(id, visual),
   }
 }
@@ -174,7 +177,7 @@ export function themedLesson1Items(category: ThemeCategory, visual: Lesson1Theme
   }))
 }
 
-export function getLesson1ThemeItemLabel(
+function getLesson1ThemeItemLabel(
   theme: Lesson1ThemePack,
   categoryKey: ThemeCategory['key'],
   id: string,

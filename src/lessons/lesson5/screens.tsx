@@ -1,8 +1,9 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import '../../screens/screens.css'
 import { ChallengeQuestion } from '../../components/ChallengeQuestion'
 import { ClickthroughMiniLesson } from '../../components/ClickthroughMiniLesson'
 import { FeedbackBanner } from '../../components/FeedbackBanner'
+import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
@@ -18,6 +19,7 @@ import {
 import type { Lesson1ThemePack } from '../../themes/themeTypes'
 import { playCompletionTada } from '../../utils/completionSound'
 import { iconForThemeLabel } from '../../utils/themeEmoji'
+import { getProfileLessonProgress } from '../../utils/lessonProgress'
 import {
   builderStartingSpaces,
   challenge1,
@@ -28,7 +30,6 @@ import {
   sampleSpaceMiniLesson,
   sixSpaceFairSpinnerSpaces,
   spinnerInspectorSpaces,
-  unfairSpinnerSpaces,
   type Lesson5ChallengePage,
   type Lesson5MiniLessonPage,
   type Lesson5OutcomeKind,
@@ -38,6 +39,26 @@ import {
 
 interface Lesson5SectionProps {
   princessName: string
+}
+
+type Lesson5ChallengeState = {
+  answerInput: string
+  submitted: boolean
+  isCorrect: boolean | null
+  wrongAttempts: number
+  attemptedAnswers: string[]
+}
+
+type Lesson5SampleSpaceState = {
+  selectedIndexes: number[]
+}
+
+type Lesson5BuilderState = {
+  spaces: Lesson5SpinnerSpace[]
+}
+
+type Lesson5PageState = {
+  pageIndex: number
 }
 
 const OUTCOME_SYMBOLS: Record<Lesson5OutcomeKind, string> = {
@@ -62,14 +83,6 @@ const WINNER_BY_KIND: Record<Lesson5OutcomeKind, Lesson5Player> = {
   jewel: 'none',
   star: 'princess',
   shield: 'knight',
-}
-
-const OUTCOME_COLORS: Record<Lesson5OutcomeKind, string> = {
-  crown: '#fef3c7',
-  dragon: '#dcfce7',
-  jewel: '#dbeafe',
-  star: '#fef9c3',
-  shield: '#ede9fe',
 }
 
 interface OutcomeDisplay {
@@ -276,41 +289,40 @@ function createLesson5OutcomeVisuals(activeTheme: Lesson1ThemePack): OutcomeVisu
   const visual = getLesson1ThemeVisual(activeTheme)
   return {
     crown: {
-      background: visual.hintBackground,
+      background: `color-mix(in srgb, ${visual.motifPrimary} 48%, #0f172a)`,
       border: visual.motifPrimary,
-      text: visual.hintText,
+      text: '#f8fafc',
     },
     dragon: {
-      background: visual.successBackground,
+      background: `color-mix(in srgb, ${visual.motifSecondary} 48%, #0f172a)`,
       border: visual.motifSecondary,
-      text: visual.successText,
+      text: '#f8fafc',
     },
     jewel: {
-      background: visual.panelBackground,
-      border: visual.borderColor,
-      text: visual.buttonText,
+      background: `color-mix(in srgb, ${visual.accentColor} 42%, #0f172a)`,
+      border: visual.accentColor,
+      text: '#e0f2fe',
     },
     star: {
-      background: visual.stageBackground,
+      background: `color-mix(in srgb, ${visual.motifPrimary} 34%, #111827)`,
       border: visual.motifPrimary,
-      text: visual.buttonText,
+      text: '#f8fafc',
     },
     shield: {
-      background: visual.screenBackground,
+      background: `color-mix(in srgb, ${visual.buttonBorder} 42%, #0f172a)`,
       border: visual.buttonBorder,
-      text: visual.buttonText,
+      text: '#e2e8f0',
     },
   }
 }
 
 function createLesson5ThemeBridge(activeTheme: Lesson1ThemePack): Lesson5ThemeBridge {
-  const visual = getLesson1ThemeVisual(activeTheme)
   const display = createLesson5OutcomeDisplayMap(activeTheme)
   const copy = createLesson5ThemeCopy(activeTheme)
   const screenStyle = {
     ...lesson1ThemeStyle(activeTheme),
-    '--color-primary': visual.accentColor,
-    '--color-border': visual.borderColor,
+    '--color-primary': 'var(--schema-neon, #22d3ee)',
+    '--color-border': 'var(--theme-border, rgb(148 163 184 / 0.24))',
   } as CSSProperties
 
   return {
@@ -318,12 +330,12 @@ function createLesson5ThemeBridge(activeTheme: Lesson1ThemePack): Lesson5ThemeBr
     outcomeVisuals: createLesson5OutcomeVisuals(activeTheme),
     screenStyle,
     spinnerStyle: {
-      borderColor: visual.accentColor,
-      background: visual.panelBackground,
-      boxShadow: `0 10px 24px ${visual.borderColor}`,
+      borderColor: 'var(--theme-spinner-rim, var(--schema-neon, #22d3ee))',
+      background: 'var(--theme-panel-bg, rgb(15 23 42 / 0.78))',
+      boxShadow: '0 10px 24px color-mix(in srgb, var(--schema-neon, #22d3ee) 18%, transparent)',
     },
     pointerStyle: {
-      borderTopColor: visual.accentColor,
+      borderTopColor: 'var(--theme-spinner-pointer, var(--schema-neon, #22d3ee))',
     },
     hubStyle: {
       position: 'absolute',
@@ -334,28 +346,28 @@ function createLesson5ThemeBridge(activeTheme: Lesson1ThemePack): Lesson5ThemeBr
       placeItems: 'center',
       width: '3.2rem',
       height: '3.2rem',
-      border: `4px solid ${visual.buttonBackground}`,
+      border: '4px solid var(--theme-spinner-separator, rgb(15 23 42 / 0.92))',
       borderRadius: '50%',
-      background: `linear-gradient(135deg, ${visual.accentColor}, ${visual.motifSecondary})`,
-      color: '#fff',
+      background: 'var(--theme-spinner-hub-bg, rgb(2 6 23 / 0.94))',
+      color: 'var(--theme-spinner-hub-text, #e0f2fe)',
       fontWeight: 900,
       transform: 'translate(-50%, -50%)',
-      boxShadow: `0 6px 16px ${visual.borderColor}`,
+      boxShadow: '0 0 1.2rem color-mix(in srgb, var(--schema-neon, #22d3ee) 34%, transparent)',
       pointerEvents: 'none',
     },
-    selectedColor: visual.accentColor,
+    selectedColor: 'var(--schema-neon, #22d3ee)',
     fairResultStyle: {
-      background: visual.successBackground,
-      color: visual.successText,
+      background: 'var(--theme-success-bg, rgb(6 78 59 / 0.48))',
+      color: 'var(--theme-success-text, #bbf7d0)',
     },
     unfairResultStyle: {
-      background: visual.hintBackground,
-      color: visual.hintText,
+      background: 'var(--theme-error-bg, rgb(127 29 29 / 0.44))',
+      color: 'var(--theme-error-text, #fecaca)',
     },
     matchOutcomeStyle: {
-      background: visual.successBackground,
-      borderColor: visual.motifSecondary,
-      color: visual.successText,
+      background: 'var(--theme-success-bg, rgb(6 78 59 / 0.48))',
+      borderColor: 'var(--theme-success-border, #34d399)',
+      color: 'var(--theme-success-text, #bbf7d0)',
     },
     copy,
   }
@@ -378,12 +390,10 @@ type Lesson5ExplanationPage = Extract<Lesson5MiniLessonPage, { type: 'explanatio
 function makeSpinnerSpace(
   id: string,
   kind: Lesson5OutcomeKind,
-  display: OutcomeDisplayMap = DEFAULT_OUTCOME_DISPLAY,
 ): Lesson5SpinnerSpace {
   return {
     id,
     kind,
-    label: display[kind].label,
     winner: WINNER_BY_KIND[kind],
   }
 }
@@ -475,7 +485,7 @@ function getCarnivalSpinnerBackground(
       const start = index * slice
       const end = (index + 1) * slice
       const separatorStart = Math.max(start, end - 0.55)
-      return `${outcomeVisuals[space.kind]?.background ?? OUTCOME_COLORS[space.kind]} ${start}% ${separatorStart}%, rgb(255 255 255 / 0.78) ${separatorStart}% ${end}%`
+      return `${outcomeVisuals[space.kind].background} ${start}% ${separatorStart}%, var(--theme-spinner-separator, rgb(15 23 42 / 0.92)) ${separatorStart}% ${end}%`
     })
     .join(', ')})`
 }
@@ -488,6 +498,10 @@ function getRandomIndex(length: number): number {
     return values[0] % length
   }
   return Math.floor(Math.random() * length)
+}
+
+function normalizeSelectedIndexes(indexes: readonly number[], spaceCount: number): number[] {
+  return [...new Set(indexes)].filter((index) => Number.isInteger(index) && index >= 0 && index < spaceCount)
 }
 
 interface CarnivalSpinnerProps {
@@ -508,11 +522,11 @@ function CarnivalSpinner({
   const themeBridge = useLesson5ThemeBridge()
   const { display, outcomeVisuals } = themeBridge
   const interactive = Boolean(onSelect)
-  const [internalSelectedIndex, setInternalSelectedIndex] = useState(0)
+  const [internalSelectedIndex, setInternalSelectedIndex] = useState<number | null>(null)
   const [spinTurns, setSpinTurns] = useState(0)
-  const selectedIndex = internalSelectedIndex
   const slice = 360 / spaces.length
-  const spinRotation = spinTurns * 360 - (selectedIndex * slice + slice / 2)
+  const selectedIndex = internalSelectedIndex ?? 0
+  const spinRotation = spinTurns === 0 ? 0 : spinTurns * 360 - (selectedIndex * slice + slice / 2)
 
   function handleSelect(index: number) {
     setSpinTurns((turns) => turns + 1)
@@ -545,7 +559,7 @@ function CarnivalSpinner({
         <div className="lesson-5-spinner__rotor">
           <div className="lesson-5-spinner__wheel" aria-hidden="true" />
           {spaces.map((space, index) => {
-            const selected = selectedIndexes.includes(index) || selectedIndex === index
+            const selected = selectedIndexes.includes(index) || internalSelectedIndex === index
             const displaySpace = display[space.kind]
             const angle = index * slice + slice / 2
             return (
@@ -690,42 +704,59 @@ function FairnessMeter({ spaces, opponent, showResult = true }: FairnessMeterPro
   )
 }
 
+function getLesson5ChallengeSectionId(challengeId: string): string {
+  return `lesson-5-challenge-${challengeId}`
+}
+
+function useLesson5ChallengeState(challengeId: string) {
+  return useSectionState<Lesson5ChallengeState>(getLesson5ChallengeSectionId(challengeId), {
+    answerInput: '',
+    submitted: false,
+    isCorrect: null,
+    wrongAttempts: 0,
+    attemptedAnswers: [],
+  })
+}
+
+function useLesson5ChallengeSolved(challengeId: string): boolean {
+  const [state] = useLesson5ChallengeState(challengeId)
+  return state.isCorrect === true
+}
+
 interface Lesson5ChallengeBlockProps {
   challenge: Lesson5ChallengePage
-  onCorrect?: () => void
   children?: ReactNode
 }
 
-function Lesson5ChallengeBlock({ challenge, onCorrect, children }: Lesson5ChallengeBlockProps) {
-  const { profile } = useLesson()
+function Lesson5ChallengeBlock({ challenge, children }: Lesson5ChallengeBlockProps) {
+  const { profile, recordStudentMemoryEvent } = useLesson()
   const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
-  const [state, setState] = useSectionState(`lesson-5-challenge-${challenge.id}`, {
-    answerInput: '',
-    submitted: false,
-    isCorrect: null as boolean | null,
-    wrongAttempts: 0,
-    attemptedAnswers: [] as string[],
-    repeatedAnswer: null as string | null,
-  })
-  const { answerInput, submitted, isCorrect, wrongAttempts, attemptedAnswers, repeatedAnswer } = state
+  const [state, setState] = useLesson5ChallengeState(challenge.id)
+  const { submitted, isCorrect, wrongAttempts, attemptedAnswers } = state
+  const [answerInput, setAnswerInput] = useState(state.answerInput)
 
   function handleSubmit() {
     const normalizedAnswer = answerInput.trim()
-    if (attemptedAnswers.includes(normalizedAnswer)) {
-      setState({ repeatedAnswer: normalizedAnswer })
-      return
-    }
+    if (attemptedAnswers.includes(normalizedAnswer)) return
 
     const correct = Number(normalizedAnswer) === challenge.answer
     setState({
+      answerInput: normalizedAnswer,
       submitted: true,
       isCorrect: correct,
       wrongAttempts: correct ? wrongAttempts : wrongAttempts + 1,
       attemptedAnswers: [...attemptedAnswers, normalizedAnswer],
-      repeatedAnswer: null,
     })
+    void recordStudentMemoryEvent({
+      type: 'challengeAttempt',
+      lessonId: LESSON_5_ID,
+      conceptKey: `lesson-5-${challenge.id}`,
+      label: 'Fair sample spaces',
+      outcome: correct ? 'correct' : 'incorrect',
+      learnerAnswer: normalizedAnswer,
+      correctAnswer: String(challenge.answer),
+    }).catch(() => undefined)
     setFeedbackVoiceToken((token) => token + 1)
-    if (correct) onCorrect?.()
   }
 
   const feedback =
@@ -742,16 +773,25 @@ function Lesson5ChallengeBlock({ challenge, onCorrect, children }: Lesson5Challe
       <ChallengeQuestion
         prompt={challenge.prompt}
         value={answerInput}
-        onChange={(value) => setState({ answerInput: value, repeatedAnswer: null })}
+        onChange={setAnswerInput}
         onSubmit={handleSubmit}
+        attemptedAnswers={attemptedAnswers}
         submitted={submitted}
         allowRetry={submitted && isCorrect === false}
       />
-      {repeatedAnswer && (
-        <p className="challenge__repeat-warning" role="status">
-          You already tried <strong>{repeatedAnswer}</strong>. Try a different answer!
-        </p>
-      )}
+      <HintButton
+        lessonId={LESSON_5_ID}
+        conceptKey={`lesson-5-${challenge.id}`}
+        conceptLabel="Fair sample spaces"
+        prompt={challenge.prompt}
+        context={challenge.body ?? 'The learner is counting outcomes to decide whether a spinner game is fair.'}
+        fallbackHint={challenge.feedback?.tryAgain ?? 'Count the favorable outcomes, then compare them with all possible outcomes.'}
+        blockedAnswerTerms={[String(challenge.answer)]}
+        learnerAnswer={answerInput}
+        attemptedAnswers={attemptedAnswers}
+        wrongAttempts={wrongAttempts}
+        disabled={!submitted || isCorrect === true}
+      />
       {submitted && isCorrect !== null && feedback && (
         <FeedbackBanner
           variant={isCorrect ? 'success' : 'error'}
@@ -913,21 +953,22 @@ function TwoSpinnerReviewVisual() {
 export function Lesson5SampleSpaceIntro({ princessName }: Lesson5SectionProps) {
   const { profile, updateScreen } = useLesson()
   const themeBridge = useLesson5ThemeBridge()
-  const [state, setState] = useSectionState('lesson-5-sample-space-intro', {
-    selectedIndexes: [] as number[],
-    challengeCorrect: false,
-  })
-  const { selectedIndexes, challengeCorrect } = state
+  const [sampleSpaceState, setSampleSpaceState] = useSectionState<Lesson5SampleSpaceState>(
+    'lesson-5-sample-space-tray',
+    { selectedIndexes: [] },
+  )
+  const selectedIndexes = normalizeSelectedIndexes(sampleSpaceState.selectedIndexes, spinnerInspectorSpaces.length)
+  const hasCollectedSampleSpace = selectedIndexes.length === spinnerInspectorSpaces.length
+  const challengeCorrect = useLesson5ChallengeSolved('lesson-5-count-sample-space')
   const section = lesson5Sections.sampleSpaceIntro
 
   function handleSelect(index: number) {
-    setState({
-      selectedIndexes: selectedIndexes.includes(index) ? selectedIndexes : [...selectedIndexes, index],
-    })
+    if (selectedIndexes.includes(index)) return
+    setSampleSpaceState({ selectedIndexes: [...selectedIndexes, index] })
   }
 
   function resetSampleSpace() {
-    setState({ selectedIndexes: [] })
+    setSampleSpaceState({ selectedIndexes: [] })
   }
 
   return (
@@ -965,9 +1006,19 @@ export function Lesson5SampleSpaceIntro({ princessName }: Lesson5SectionProps) {
 
       <Lesson5ChallengeBlock
         challenge={themeLesson5Challenge(challenge1(princessName), themeBridge)}
-        onCorrect={() => setState({ challengeCorrect: true })}
       />
-      {challengeCorrect && <LessonButton label="Build the sample space" onClick={() => void updateScreen(2)} />}
+      {challengeCorrect && !hasCollectedSampleSpace && (
+        <FeedbackBanner
+          variant="info"
+          message={themeLesson5Text(
+            'Great answer. You can keep tapping spaces to fill the tray for practice, or continue when you are ready.',
+            themeBridge,
+          )}
+        />
+      )}
+      {challengeCorrect && (
+        <LessonButton label="Build the sample space" onClick={() => void updateScreen(2)} />
+      )}
     </section>
   )
 }
@@ -976,22 +1027,12 @@ export function Lesson5SpinnerInspector({ princessName }: Lesson5SectionProps) {
   const { profile, updateScreen } = useLesson()
   const themeBridge = useLesson5ThemeBridge()
   const miniLesson = useMemo(() => sampleSpaceMiniLesson(princessName), [princessName])
-  const [state, setState] = useSectionState('lesson-5-spinner-inspector', {
-    pageIndex: 0,
-    correctPageIds: [] as string[],
-  })
-  const { pageIndex, correctPageIds } = state
-  const outcomesChallengeSolved = correctPageIds.includes('lesson-5-count-favorable-outcomes')
-
-  function handlePageChange(nextPageIndex: number) {
-    setState({ pageIndex: nextPageIndex })
-  }
-
-  function markCorrect(pageId: string) {
-    setState({
-      correctPageIds: correctPageIds.includes(pageId) ? correctPageIds : [...correctPageIds, pageId],
-    })
-  }
+  const [pageState, setPageState] = useSectionState<Lesson5PageState>(
+    'lesson-5-spinner-inspector-pages',
+    { pageIndex: 0 },
+  )
+  const outcomesChallengeSolved = useLesson5ChallengeSolved('lesson-5-count-favorable-outcomes')
+  const pageIndex = pageState.pageIndex
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-5" style={themeBridge.screenStyle}>
@@ -1001,19 +1042,18 @@ export function Lesson5SpinnerInspector({ princessName }: Lesson5SectionProps) {
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
         currentPageIndex={pageIndex}
-        onPageChange={handlePageChange}
+        onPageChange={(nextPageIndex) => setPageState({ pageIndex: nextPageIndex })}
         onComplete={() => void updateScreen(3)}
         nextLabel="Next"
         completeLabel="Check fairness"
         navClassName="anchor-lesson__nav"
         showDots
-        showNext={(page) => !isChallengePage(page) || correctPageIds.includes(page.id)}
+        showNext={(page) => !isChallengePage(page) || outcomesChallengeSolved}
         renderPage={(page) =>
           isChallengePage(page) ? (
             <Lesson5ChallengeBlock
               key={page.id}
               challenge={themeLesson5Challenge(page, themeBridge)}
-              onCorrect={() => markCorrect(page.id)}
             />
           ) : (
             <>
@@ -1039,17 +1079,14 @@ export function Lesson5SpinnerInspector({ princessName }: Lesson5SectionProps) {
 export function Lesson5FairnessCheck({ princessName }: Lesson5SectionProps) {
   const { profile, updateScreen } = useLesson()
   const themeBridge = useLesson5ThemeBridge()
-  const [state, setState] = useSectionState('lesson-5-fairness-check', {
-    challengeCorrect: false,
-  })
-  const { challengeCorrect } = state
+  const challengeCorrect = useLesson5ChallengeSolved('lesson-5-decide-fair-or-unfair')
   const section = lesson5Sections.fairnessCheck
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-5" style={themeBridge.screenStyle}>
       <ScreenBackButton label="← Back" onClick={() => void updateScreen(2)} />
       <h1>{themeLesson5Text(section.heading, themeBridge)}</h1>
-      <LessonText text={themeLesson5Text(section.body(princessName), themeBridge)} />
+      <LessonText text={themeLesson5Text(section.body(), themeBridge)} />
       <VoiceButton
         autoPlay={!challengeCorrect}
         enabled={profile.voiceEnabled}
@@ -1061,11 +1098,11 @@ export function Lesson5FairnessCheck({ princessName }: Lesson5SectionProps) {
 
       <div className="lesson-screen__play-area">
         <CarnivalSpinner
-          spaces={unfairSpinnerSpaces}
+          spaces={spinnerInspectorSpaces}
           ariaLabel={themeLesson5Text('Carnival spinner with Crown, Crown, Dragon, and Jewel', themeBridge)}
         />
         <FairnessMeter
-          spaces={unfairSpinnerSpaces}
+          spaces={spinnerInspectorSpaces}
           opponent="dragon"
           showResult={challengeCorrect}
         />
@@ -1073,7 +1110,6 @@ export function Lesson5FairnessCheck({ princessName }: Lesson5SectionProps) {
 
       <Lesson5ChallengeBlock
         challenge={themeLesson5Challenge(challenge3(princessName), themeBridge)}
-        onCorrect={() => setState({ challengeCorrect: true })}
       />
       {challengeCorrect && <LessonButton label="Fix the game" onClick={() => void updateScreen(4)} />}
     </section>
@@ -1084,11 +1120,12 @@ export function Lesson5FairSpinnerBuilder({ princessName }: Lesson5SectionProps)
   const { updateScreen } = useLesson()
   const themeBridge = useLesson5ThemeBridge()
   const { display } = themeBridge
-  const [state, setState] = useSectionState('lesson-5-fair-spinner-builder', {
-    spaces: builderStartingSpaces,
-    challengeCorrect: false,
-  })
-  const { spaces, challengeCorrect } = state
+  const [builderState, setBuilderState] = useSectionState<Lesson5BuilderState>(
+    'lesson-5-fair-spinner-builder',
+    { spaces: builderStartingSpaces },
+  )
+  const spaces = builderState.spaces
+  const challengeCorrect = useLesson5ChallengeSolved('lesson-5-fix-spinner')
   const princessCount = spaces.filter((space) => space.winner === 'princess').length
   const dragonCount = spaces.filter((space) => space.winner === 'dragon').length
   const isFair = princessCount === dragonCount
@@ -1096,17 +1133,17 @@ export function Lesson5FairSpinnerBuilder({ princessName }: Lesson5SectionProps)
 
   function cycleSpace(index: number) {
     const cycle: Lesson5OutcomeKind[] = ['crown', 'dragon', 'jewel']
-    setState({
+    setBuilderState({
       spaces: spaces.map((space, spaceIndex) => {
         if (spaceIndex !== index) return space
         const nextKind = cycle[(cycle.indexOf(space.kind) + 1) % cycle.length]
-        return makeSpinnerSpace(space.id, nextKind, display)
+        return makeSpinnerSpace(space.id, nextKind)
       }),
     })
   }
 
   function resetBuilder() {
-    setState({ spaces: builderStartingSpaces })
+    setBuilderState({ spaces: builderStartingSpaces })
   }
 
   return (
@@ -1139,63 +1176,78 @@ export function Lesson5FairSpinnerBuilder({ princessName }: Lesson5SectionProps)
 
       <Lesson5ChallengeBlock
         challenge={themeLesson5Challenge(challenge4(princessName), themeBridge)}
-        onCorrect={() => setState({ challengeCorrect: true })}
       />
       {challengeCorrect && !isFair && (
         <FeedbackBanner
           variant="info"
-          message={`Great answer. Now repaint the spinner so ${display.crown.label} and ${display.dragon.label} each have the same number of winning spaces.`}
+          message={`Great answer. You can repaint the spinner so ${display.crown.label} and ${display.dragon.label} match, or continue when you are ready.`}
         />
       )}
-      {challengeCorrect && isFair && <LessonButton label={themeBridge.copy.reviewTitle} onClick={() => void updateScreen(5)} />}
+      {challengeCorrect && <LessonButton label={themeBridge.copy.reviewTitle} onClick={() => void updateScreen(5)} />}
     </section>
   )
 }
 
 export function Lesson5RoyalReview({ princessName }: Lesson5SectionProps) {
-  const { updateLesson, updateScreen } = useLesson()
+  const { profile, updateLesson, updateScreen } = useLesson()
+  const activeLesson = getProfileLessonProgress(profile, LESSON_5_ID)
   const themeBridge = useLesson5ThemeBridge()
   const miniLesson = useMemo(() => royalReviewMiniLesson(princessName), [princessName])
-  const [state, setState] = useSectionState('lesson-5-royal-review', {
-    pageIndex: 0,
-    correctPageIds: [] as string[],
-  })
-  const { pageIndex, correctPageIds } = state
+  const [pageState, setPageState] = useSectionState<Lesson5PageState>(
+    'lesson-5-royal-review-pages',
+    { pageIndex: 0 },
+  )
+  const builtGameChallengeSolved = useLesson5ChallengeSolved('lesson-5-check-built-game')
+  const twoSpinnerChallengeSolved = useLesson5ChallengeSolved('lesson-5-two-spinner-fairness')
+  const finishInFlight = useRef(false)
   const section = lesson5Sections.royalReview
+  const pageIndex = pageState.pageIndex
+  const lessonCompleted = activeLesson.completed
 
-  function markCorrect(pageId: string) {
-    setState({
-      correctPageIds: correctPageIds.includes(pageId) ? correctPageIds : [...correctPageIds, pageId],
-    })
+  function isReviewChallengeSolved(pageId: string): boolean {
+    if (lessonCompleted) return true
+    if (pageId === 'lesson-5-check-built-game') return builtGameChallengeSolved
+    if (pageId === 'lesson-5-two-spinner-fairness') return twoSpinnerChallengeSolved
+    return false
   }
 
   async function handleFinish() {
-    playCompletionTada()
-    await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    if (finishInFlight.current) return
+    finishInFlight.current = true
+    try {
+      if (lessonCompleted) {
+        await updateScreen(0)
+        return
+      }
+      playCompletionTada()
+      await updateLesson({ completed: true, currentScreen: 0, lastLessonScreen: 5 })
+    } catch (error) {
+      finishInFlight.current = false
+      throw error
+    }
   }
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-5" style={themeBridge.screenStyle}>
       <ScreenBackButton label="← Back" onClick={() => void updateScreen(4)} />
       <h1>{themeLesson5Text(section.heading, themeBridge)}</h1>
-      <LessonText text={themeLesson5Text(section.body(princessName), themeBridge)} />
+      <LessonText text={themeLesson5Text(section.body(), themeBridge)} />
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
         currentPageIndex={pageIndex}
-        onPageChange={(nextPageIndex) => setState({ pageIndex: nextPageIndex })}
+        onPageChange={(nextPageIndex) => setPageState({ pageIndex: nextPageIndex })}
         onComplete={handleFinish}
         nextLabel="Next"
-        completeLabel="Finish Lesson"
+        completeLabel={lessonCompleted ? 'Return to Academy' : 'Finish Lesson'}
         navClassName="anchor-lesson__nav"
         showDots
-        showNext={(page) => !isChallengePage(page) || correctPageIds.includes(page.id)}
+        showNext={(page) => !isChallengePage(page) || isReviewChallengeSolved(page.id)}
         renderPage={(page) => {
           if (isChallengePage(page)) {
             return (
               <Lesson5ChallengeBlock
                 key={page.id}
                 challenge={themeLesson5Challenge(page, themeBridge)}
-                onCorrect={() => markCorrect(page.id)}
               >
                 {page.id === 'lesson-5-check-built-game' ? (
                   <>
@@ -1206,7 +1258,7 @@ export function Lesson5RoyalReview({ princessName }: Lesson5SectionProps) {
                     <FairnessMeter
                       spaces={sixSpaceFairSpinnerSpaces}
                       opponent="knight"
-                      showResult={correctPageIds.includes(page.id)}
+                      showResult={builtGameChallengeSolved}
                     />
                   </>
                 ) : (

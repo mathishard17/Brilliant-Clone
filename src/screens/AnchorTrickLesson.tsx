@@ -14,6 +14,7 @@ import { WHITE_DRESS_ID } from '../data/dressColors'
 import { DRESSES } from '../lessons/lesson1/data'
 import { LESSON_1_ID } from '../types/lesson'
 import { useLesson } from '../hooks/useLesson'
+import { getProfileLessonProgress } from '../utils/lessonProgress'
 import {
   getLesson1ThemeCopy,
   getLesson1ThemeVisual,
@@ -70,6 +71,7 @@ function getAnchorItemIcon(label: string) {
 
 export function AnchorTrickLesson() {
   const { profile, updateLesson, updateScreen } = useLesson()
+  const activeLesson = getProfileLessonProgress(profile, LESSON_1_ID)
   const theme = resolveLesson1Theme(profile.themePreference, profile.themePacks)
   const copy = getLesson1ThemeCopy(theme)
   const visual = getLesson1ThemeVisual(theme)
@@ -85,7 +87,7 @@ export function AnchorTrickLesson() {
   }
   const dressLabels = DRESSES.map((dress) => itemLabels[dress.id] ?? dress.label)
   const [currentStep, setCurrentStep] = useState(() =>
-    Math.min(Math.max(profile.lesson.screen2.currentStep, 1), screen2MiniLesson.pages.length),
+    Math.min(Math.max(activeLesson.screen2.currentStep, 1), screen2MiniLesson.pages.length),
   )
   const currentPageIndex = Math.min(
     Math.max(currentStep, 1),
@@ -95,6 +97,7 @@ export function AnchorTrickLesson() {
   const [isCycling, setIsCycling] = useState(false)
   const cycleToken = useRef(0)
   const autoPlayedRef = useRef(false)
+  const pageSaveInFlightRef = useRef<number | null>(null)
 
   const runDressCycle = useCallback(async () => {
     const token = ++cycleToken.current
@@ -128,6 +131,8 @@ export function AnchorTrickLesson() {
   const updatePage = useCallback(
     async (nextPageIndex: number) => {
       const nextStep = nextPageIndex + 1
+      if (nextStep === currentStep || pageSaveInFlightRef.current === nextStep) return
+      pageSaveInFlightRef.current = nextStep
       cycleToken.current += 1
       setIsCycling(false)
       if (nextStep === 3) {
@@ -135,11 +140,17 @@ export function AnchorTrickLesson() {
         autoPlayedRef.current = false
       }
       setCurrentStep(nextStep)
-      await updateLesson({
-        screen2: { currentStep: nextStep },
-      })
+      try {
+        await updateLesson({
+          screen2: { currentStep: nextStep },
+        }, LESSON_1_ID)
+      } finally {
+        if (pageSaveInFlightRef.current === nextStep) {
+          pageSaveInFlightRef.current = null
+        }
+      }
     },
-    [updateLesson],
+    [currentStep, updateLesson],
   )
 
   function getStepBody(pageId: string) {
@@ -165,7 +176,7 @@ export function AnchorTrickLesson() {
 
   return (
     <section className="lesson-screen lesson-screen--themed anchor-lesson" style={lesson1ThemeStyle(theme)}>
-      <ScreenBackButton label="← Back" onClick={() => void updateScreen(1)} />
+      <ScreenBackButton label="← Back" onClick={() => void updateScreen(1, LESSON_1_ID)} />
       <h1>{copy.screen2Title}</h1>
       <VoiceButton
         autoPlay={currentStep === 1}
@@ -175,11 +186,12 @@ export function AnchorTrickLesson() {
         themePreference={profile.themePreference}
         label="Listen to the trick"
       />
+
       <ClickthroughMiniLesson
         miniLesson={screen2MiniLesson}
         currentPageIndex={currentPageIndex}
         onPageChange={updatePage}
-        onComplete={() => void updateScreen(3)}
+        onComplete={() => void updateScreen(3, LESSON_1_ID)}
         completeLabel={copy.screen2Button}
         contentClassName="anchor-lesson__content"
         navClassName="anchor-lesson__nav"
@@ -214,6 +226,7 @@ export function AnchorTrickLesson() {
                     variant={visual.character}
                     characterConfig={visual.characterConfig}
                     itemStyles={itemMotifs}
+                    appearance={profile.appearance}
                   />
                   {pageIndex === 3 && expandedTree && (
                     <AnchorOutfitsFound

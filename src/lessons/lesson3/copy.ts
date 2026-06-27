@@ -2,7 +2,6 @@ import type {
   ChallengeMiniLessonPage,
   ClickthroughMiniLesson,
   ExplanationMiniLessonPage,
-  InteractiveVisualizationKind,
 } from '../../types/lesson'
 import type { ThemePreference } from '../../themes/themeTypes'
 
@@ -25,7 +24,6 @@ export interface Lesson3ThemeCopy {
   containerSingular: string
   containerPlural: string
   collectionName: string
-  helperName: string
   pickerHeading: string
   pickerIntro: (learnerName: string) => string
   choiceAreaLabel: string
@@ -78,7 +76,6 @@ const ROYAL_LESSON_3_THEME: Lesson3ThemeCopy = {
   containerSingular: 'gift bag',
   containerPlural: 'treasure bags',
   collectionName: 'royal vault',
-  helperName: 'royal helper',
   pickerHeading: '🎁 Open the Royal Vault',
   pickerIntro: (learnerName) =>
     `Hi, ${learnerName}! The royal vault is sparkling today. Choose **2 different treasures** for each royal gift bag. How many different treasure bags can you make?`,
@@ -139,7 +136,6 @@ const LESSON_3_THEMES: Record<ThemePreference, Lesson3ThemeCopy> = {
     containerSingular: 'mission kit',
     containerPlural: 'mission kits',
     collectionName: 'space supply bay',
-    helperName: 'mission helper',
     pickerHeading: '🚀 Open the Space Supply Bay',
     pickerIntro: (learnerName) =>
       `Hi, ${learnerName}! The space supply bay is glowing today. Choose **2 different space finds** for each mission kit. How many different mission kits can you make?`,
@@ -188,7 +184,6 @@ const LESSON_3_THEMES: Record<ThemePreference, Lesson3ThemeCopy> = {
     containerSingular: 'field kit',
     containerPlural: 'field kits',
     collectionName: 'dig site',
-    helperName: 'dig helper',
     pickerHeading: '🦕 Open the Dig Site',
     pickerIntro: (learnerName) =>
       `Hi, ${learnerName}! The dig site has new finds today. Choose **2 different fossil finds** for each field kit. How many different field kits can you make?`,
@@ -236,7 +231,6 @@ const LESSON_3_THEMES: Record<ThemePreference, Lesson3ThemeCopy> = {
     containerSingular: 'care kit',
     containerPlural: 'care kits',
     collectionName: 'rescue shelf',
-    helperName: 'rescue helper',
     pickerHeading: '🐾 Open the Rescue Shelf',
     pickerIntro: (learnerName) =>
       `Hi, ${learnerName}! The rescue shelf is ready today. Choose **2 different rescue items** for each care kit. How many different care kits can you make?`,
@@ -284,7 +278,6 @@ const LESSON_3_THEMES: Record<ThemePreference, Lesson3ThemeCopy> = {
     containerSingular: 'team kit',
     containerPlural: 'team kits',
     collectionName: 'gear locker',
-    helperName: 'team helper',
     pickerHeading: '🏅 Open the Gear Locker',
     pickerIntro: (learnerName) =>
       `Hi, ${learnerName}! The gear locker is ready today. Choose **2 different team items** for each team kit. How many different team kits can you make?`,
@@ -332,7 +325,6 @@ const LESSON_3_THEMES: Record<ThemePreference, Lesson3ThemeCopy> = {
     containerSingular: 'surprise kit',
     containerPlural: 'surprise kits',
     collectionName: 'idea studio',
-    helperName: 'studio helper',
     pickerHeading: '✨ Open the Idea Studio',
     pickerIntro: (learnerName) =>
       `Hi, ${learnerName}! The idea studio is sparkling today. Choose **2 different studio items** for each surprise kit. How many different surprise kits can you make?`,
@@ -411,25 +403,21 @@ function listTreasureLabels(theme: Lesson3ThemeCopy, treasureIds: readonly Lesso
   return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`
 }
 
-export interface Lesson3VisualizationSection {
-  id: string
+interface Lesson3VisualizationSection {
   heading: string
   body: (princessName: string) => string
-  visualization: InteractiveVisualizationKind
   nextLabel: string
 }
 
 export function lesson3TreasureBagSection(theme: Lesson3ThemeCopy): Lesson3VisualizationSection {
   return {
-    id: 'lesson-3-treasure-bag-picker',
     heading: theme.pickerHeading,
     body: theme.pickerIntro,
-    visualization: 'treasure-bag-combinations',
     nextLabel: theme.compareNextLabel,
   }
 }
 
-export type Lesson3SameBagPage = ExplanationMiniLessonPage
+type Lesson3SameBagPage = ExplanationMiniLessonPage
 
 export function lesson3SameBagMiniLesson(
   theme: Lesson3ThemeCopy,
@@ -475,10 +463,8 @@ export function lesson3SameBagMiniLesson(
 
 export function lesson3CountingSection(theme: Lesson3ThemeCopy): Lesson3VisualizationSection {
   return {
-    id: 'lesson-3-counting-shortcut',
     heading: theme.countingHeading,
     body: () => theme.countingBody,
-    visualization: 'combination-shortcut',
     nextLabel: theme.countingNextLabel,
   }
 }

@@ -22,9 +22,3 @@ export function releaseExclusiveAudio(id: number) {
     activeSession = null
   }
 }
-
-export function stopExclusiveAudio() {
-  const previousSession = activeSession
-  activeSession = null
-  previousSession?.stop()
-}
