@@ -50,7 +50,7 @@ Concise milestone log for **Counting Adventures**.
 - Updated signup and the Home Hub so a learner can choose or change a theme preference, including custom-theme fallback behavior.
 - Updated Lesson 1 rendering so labels and flavor copy can come from a validated theme pack while counts and answers stay deterministic.
 - Added Vercel API generation code for Lesson 1 theme packs, including validation, fallback behavior, caching, and server-side OpenAI calls.
-- Added optional Lesson 1 AI hints with safe JSON validation and fallback hints that do not change correctness or progress.
+- Added optional Coach Hints with safe JSON validation, fallback hints, and a server-side second-pass safety review for generated hints.
 - Added theme visual identity, including distinct Royal/Space color schemes and an astronaut-style Space character.
 - Added bounded flexible copy slots so themes can change headings, transitions, and summary language while equations and answers stay code-owned.
 - Added full theme visual tokens for buttons, hints, success states, and motif shapes.
@@ -86,7 +86,7 @@ Concise milestone log for **Counting Adventures**.
 ## Major QA Lessons Learned
 
 - Do not reveal answers immediately before a challenge.
-- Gate progression on correct answers and required visual state.
+- Gate progression on correct answers; visual experiments should scaffold thinking, not require every outfit, ordering, bag, or outcome before accepting a correct answer.
 - Make visuals genuinely interactive, not just static text/buttons.
 - Spinner visuals must have fixed pointers, aligned sectors/labels, one-direction spin, and random landing when appropriate.
 - Keep arithmetic scaffolded for the 3rd-grade learner.
@@ -112,7 +112,7 @@ Concise milestone log for **Counting Adventures**.
 - Added generic correct/try-again voice cues for Lesson 1, Lesson 4, and Lesson 5 challenge feedback so spoken feedback supports the written message without repeating it.
 - Expanded voice to Lessons 2 and 3, added the missing Lesson 5 screen 2 voice hook, and mirrored all new clip keys in the client/server voice catalogs.
 - Fixed Lesson 2 resubmission after visual proof: a correct number entered before finishing the visual no longer gets blocked as a duplicate once the visual proof is complete.
-- Clarified Lesson 2 feedback so learners know their answer is correct but they still need to click/build all visual proof orders.
+- Updated Lesson 2 feedback/progression so the visual proof supports the explanation without blocking a correct typed answer.
 - Reworked Lesson 1 non-dress character rendering toward generated inline SVG primitives with explicit color slots instead of brittle path tweaks.
 - Added shared theme state tokens and themed CSS overrides after the cross-lesson theme review loop.
 - Adjusted Lesson 4 and Lesson 5 spinner labels farther from the center hub.
@@ -123,6 +123,11 @@ Concise milestone log for **Counting Adventures**.
 - Added graph node Feedback for in-progress, completed, and mastered nodes only; Feedback opens from the node detail panel and regenerates automatically when the learner's progress/context cache key changes.
 - Migrated AI hint generation, AI theme generation, graph Feedback summaries, and Cartesia voice generation off Firebase Cloud Functions and onto Vercel-style API routes.
 - Removed the original one-lesson profile compatibility field from app reads/writes. User progress now lives only in `users/{uid}.lessons[lessonId]`.
+- Fixed shared Firestore save payload cleanup so `undefined` values from optional memory/progress fields do not trigger the generic "Couldn't save your progress" banner.
+- Updated Coach Hint behavior: generated hints may include helpful non-answer numbers, but a second OpenAI safety check rejects direct answer reveals; hint UI resets when moving to a new problem and shows dev-only fallback reasons.
+- Standardized Lesson 1 create-outfit wording so instructions, prompts, voice clips, fallback themes, and graph copy say "outfits" instead of "looks/styles" for the outfit-building flow.
+- Changed Lessons 1, 2, 3, and 5 so visual experiments are optional scaffolds: correct typed answers unlock Continue without requiring all outfits, orderings, bags, tray entries, or repaint states first. Lesson 4 already followed this rule.
+- Polished Lesson 1 non-dress character rendering by simplifying the casual shirt body and removing unnecessary decorative torso shapes.
 
 ## Current Status
 
@@ -131,7 +136,7 @@ Concise milestone log for **Counting Adventures**.
 - Lessons 6–10 appear as coming-soon placeholders through Home Hub pagination.
 - Home Hub now includes a black neon knowledge graph for Lessons 1-10; Lessons 1-5 derive active/mastered states from existing progress and Lessons 6-10 remain locked coming-soon nodes.
 - Knowledge Graph node Feedback is present locally, gated to in-progress/completed/mastered nodes, and keyed by node, status, progress ratio, tried contexts, lesson title, and active theme.
-- Latest `npm run build` passes after the progress compatibility cleanup.
+- Latest `npm run build` passes after the optional-visual-gating, Coach Hint safety, Firestore save, and Lesson 1 outfit wording updates.
 - Vite still reports the existing large chunk warning.
 - Live Firebase site may need redeploy to include recent curriculum and theme changes.
 - Voice work has Lesson 1-5 UI integration and a Cartesia-backed Vercel API route; production voice still needs deploy QA and selected production voice IDs.
@@ -139,10 +144,10 @@ Concise milestone log for **Counting Adventures**.
 
 ## Next
 
-- Manual smoke-test Lessons 1–5 in the browser.
-- Manually smoke-test the Lesson 1 theme flow, including fallback, generated theme validation, cached theme reload, and unchanged math answers.
-- Manually smoke-test the Lesson 1 hint flow, including fallback behavior and wrong-answer retry.
-- Manually read through Lesson 1 in Royal and Space themes to verify color, copy, capitalization, and astronaut visuals.
+- Manually smoke-test Lessons 1–5 in the browser, especially that correct answers unlock Continue without exhaustive visual-building.
+- Manually smoke-test the Lesson 1 theme flow, including fallback, generated theme validation, cached theme reload, outfit wording, and unchanged math answers.
+- Manually smoke-test the Coach Hint flow, including generated hints with non-answer numbers, fallback debug reasons, wrong-answer retry, and reset behavior when moving to a new problem.
+- Manually read through Lesson 1 in Royal and Space themes to verify color, copy, capitalization, and astronaut/outfit visuals.
 - Manually inspect Lesson 1 Dinosaur/Animal/Sports/Surprise character visuals for outfit quality, hat placement, pants/shirt layering, and selected-item color changes.
 - Manually test every theme picker option to verify colors, motifs, labels, hub cards, and Lesson 2-5 local theme copy/change as expected.
 - Manually smoke-test Voice Off/Voice On across Lessons 1–5, including captions, autoplay gating, fallback audio, and feedback cue timing.
