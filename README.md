@@ -2,7 +2,7 @@
 
 Interactive themed combinatorics and probability lessons for 3rd graders, built as a Brilliant-style React app with Firebase Auth, Firestore progress, Firebase Hosting, and early AI personalization.
 
-**Live demo:** [https://brilliantclone-4276b.web.app](https://brilliantclone-4276b.web.app)
+**Live demo:** [https://brilliant-clone-mu.vercel.app/](https://brilliant-clone-mu.vercel.app/)
 
 ## Curriculum
 
