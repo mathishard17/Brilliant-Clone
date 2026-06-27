@@ -6,6 +6,7 @@ export interface ClosetItemStyle {
   border: string
   /** Colored heart for dress options */
   heartColor?: string
+  motifShape?: 'heart' | 'circle' | 'square' | 'star' | 'diamond' | 'triangle' | 'paw'
 }
 
 export const CLOSET_ITEM_STYLES: Record<string, ClosetItemStyle> = {

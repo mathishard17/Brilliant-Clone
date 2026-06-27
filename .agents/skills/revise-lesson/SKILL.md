@@ -33,8 +33,10 @@ If no review exists, run/request `review-lesson` first unless the user explicitl
 2. Keep changes in `src/lessons/lessonN/` when possible.
 3. Touch shared files only for shared bugs or needed CSS/types.
 4. Preserve the current learner persona/theme from `.agents/theme.md`.
-5. Run `npm run lint` and `npm run build`; fix failures and rerun.
-6. Summarize addressed findings, files changed, verification, and remaining issues.
+5. Do not bake a specific theme into the skill workflow or shared lesson patterns; use `.agents/theme.md` and existing theme-pack data as inputs.
+6. If a revision makes a lesson theme-aware, update lesson-local hub display needs or return a parent/integrator request for shared Home Hub/theme-contract changes.
+7. Run `npm run lint` and `npm run build`; fix failures and rerun.
+8. Summarize addressed findings, files changed, verification, and remaining issues.
 
 ## Looping With Review-Lesson
 

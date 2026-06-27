@@ -126,6 +126,16 @@ label {
   flex-direction: column;
 }
 
+.app-shell--themed::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 18% 12%, rgb(255 255 255 / 0.55) 0 9rem, transparent 9.2rem),
+    linear-gradient(180deg, var(--theme-screen-bg, var(--color-bg-castle)) 0%, var(--theme-panel-bg, #fae8ff) 54%, var(--theme-stage-bg, #fce7f3) 100%);
+}
+
 /* Tablet (incl. iPad portrait) */
 @media (min-width: 768px) {
   .app-shell {
@@ -184,9 +194,21 @@ label {
   border: 2px solid var(--color-border);
 }
 
+.app-shell--themed .app-header {
+  background: var(--theme-panel-bg, #fff);
+  border-color: var(--theme-border, var(--color-border));
+}
+
 .app-header__name {
   font-weight: 700;
   color: var(--color-royal-purple);
+}
+
+.app-shell--themed .app-header__name,
+.app-shell--themed .lesson-chrome__title,
+.app-shell--themed .lesson-progress__step-name,
+.app-shell--themed .home-hub__lesson-title {
+  color: var(--theme-accent, var(--color-royal-purple));
 }
 
 .app-header__actions {
@@ -212,8 +234,38 @@ label {
   border: 2px solid var(--color-border);
 }
 
+.app-shell--themed .app-header button,
+.app-shell--themed .home-hub__page-btn,
+.app-shell--themed .home-hub__reset-btn,
+.app-shell--themed .registry__tabs button,
+.app-shell--themed .dev-nav__buttons button {
+  background: var(--theme-button-bg, #fff);
+  color: var(--theme-button-text, var(--color-royal-purple));
+  border-color: var(--theme-button-border, var(--color-border));
+}
+
+.app-shell--themed .home-hub__lesson-card,
+.app-shell--themed .home-hub__theme-panel,
+.app-shell--themed .lesson-chrome,
+.app-shell--themed .dev-nav {
+  background: var(--theme-panel-bg, #faf5ff);
+  border-color: var(--theme-border, var(--color-border));
+}
+
 .app-header__home-btn {
   font-weight: 600;
+}
+
+.app-header__voice-btn {
+  font-weight: 700;
+}
+
+.app-header__voice-btn--on,
+.app-shell--themed .app-header__voice-btn--on {
+  background: var(--theme-accent, var(--color-royal-purple));
+  color: #fff;
+  border-color: var(--theme-accent, var(--color-royal-purple));
+  box-shadow: 0 0 0 3px rgb(124 58 237 / 0.18);
 }
 
 main {
@@ -223,6 +275,12 @@ main {
 
 .lesson-chrome {
   margin-bottom: 1rem;
+}
+
+.app-shell--themed .lesson-chrome {
+  padding: 0.85rem;
+  border: 2px solid var(--theme-border, var(--color-border));
+  border-radius: var(--radius-soft);
 }
 
 .lesson-chrome__title {
@@ -248,6 +306,10 @@ main {
   color: var(--color-text-muted);
 }
 
+.app-shell--themed .lesson-progress__label {
+  color: var(--theme-hint-text, var(--color-text-muted));
+}
+
 .lesson-progress__step-name {
   color: var(--color-royal-purple);
   font-weight: 700;
@@ -266,8 +328,16 @@ main {
   transition: background 0.3s ease;
 }
 
+.app-shell--themed .lesson-progress__segment {
+  background: var(--theme-border, var(--color-border));
+}
+
 .lesson-progress__segment--filled {
   background: var(--color-royal-purple);
+}
+
+.app-shell--themed .lesson-progress__segment--filled {
+  background: var(--theme-accent, var(--color-royal-purple));
 }
 
 .screen-placeholder {

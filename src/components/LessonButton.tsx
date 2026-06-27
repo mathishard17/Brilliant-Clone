@@ -3,6 +3,7 @@ interface LessonButtonProps {
   onClick?: () => void
   variant?: 'primary' | 'secondary'
   disabled?: boolean
+  pressed?: boolean
   type?: 'button' | 'submit'
 }
 
@@ -11,14 +12,16 @@ export function LessonButton({
   onClick,
   variant = 'primary',
   disabled = false,
+  pressed,
   type = 'button',
 }: LessonButtonProps) {
   return (
     <button
       type={type}
-      className={`lesson-btn lesson-btn--${variant}`}
+      className={`lesson-btn lesson-btn--${variant}${pressed ? ' lesson-btn--pressed' : ''}`}
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={pressed}
     >
       {label}
     </button>

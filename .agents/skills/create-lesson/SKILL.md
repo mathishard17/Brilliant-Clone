@@ -43,6 +43,8 @@ If `lessonN-plan.md` is missing, stop and ask whether to create it first.
 - Keep answers hidden until the learner has a chance to think.
 - Prefer visuals that move, fill, sort, spin, drag, place, flip, reveal, or change state.
 - Read `.agents/theme.md` and preserve the current learner persona/theme.
+- Do not hardcode any specific content theme into this skill or new lesson patterns. Treat `.agents/theme.md` as the only source of current theme/persona guidance.
+- If a new lesson should be theme-aware, update or request parent/integrator updates to Home Hub card text, emojis, and shared theme contracts.
 - Avoid universal exercise engines until patterns repeat.
 - Do not touch Firebase rules or persisted data shape unless the lesson requires new saved state.
 - Do not deploy unless the user explicitly asks.

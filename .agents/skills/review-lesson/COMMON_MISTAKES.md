@@ -15,12 +15,21 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 - Continue/Next should appear only after a correct answer when the section is a challenge.
 - If a visual builder is part of the task, the required visual state should be correct too.
 - Duplicate answer attempts should be blocked or called out.
+- Duplicate-answer guards must not block an intentionally requested resubmit after the learner completes missing visual proof.
 
 ### Interaction Quality
 
 - A visual should involve real manipulation: place, sort, spin, repaint, flip, drag, build, reveal, or classify.
 - Avoid static diagrams pretending to be interactive.
 - Tie visual state to the math question whenever possible.
+- Clickable choice buttons should show a clear selected/pressed state, especially when the default button color is white or pale.
+- Character/outfit visuals should look intentional: avoid stray limbs, floating hats, detached lines, and lower-body shapes showing through shirts or jackets.
+- Reusable character primitives should be polished enough for every theme that uses them.
+- Shirts, jerseys, jackets, aprons, and smocks need connected sleeve shapes and enough overlap to hide pants/shorts underneath.
+- Adding sleeves should not erase the learner's arms/hands; keep hands visible at sleeve cuffs.
+- Avoid using hat/cap accent colors as pants colors before an outfit is selected.
+- Do not keep adding SVG detail to a bad silhouette; reset to a simple readable paper-doll body first.
+- For recolorable characters, prefer inline SVG primitives with named color slots instead of static image assets or one-off path tweaks.
 
 ### Spinner Geometry
 
@@ -30,6 +39,7 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 - Chance spinners should land randomly when they claim to model chance.
 - Spinners should rotate one direction unless there is a reason not to.
 - Do not fake spinning by swapping rectangular buttons.
+- Theme-aware spinner labels and icons should come from the same resolved display map; do not let old short labels like Crown override a themed outcome such as Silver Helmet.
 
 ### Progress And Resume
 
@@ -51,6 +61,23 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 - Check that planned interactions, challenge questions, answers, and feedback exist.
 - Note deliberate deviations instead of silently simplifying.
 - Keep the theme from `.agents/theme.md` unless the plan says otherwise.
+- Do not assume a specific content theme in reusable lesson components, skill guidance, or shared patterns.
+
+### Theme-Aware Lesson Chrome
+
+- If the Home Hub card title/emoji/description changes with the active theme, the in-lesson title chrome should use the same resolved theme display instead of the registry's royal fallback title.
+- Lesson-local headings, button labels, feedback, and visual colors should not silently stay royal for non-royal theme preferences.
+- Theme visuals should use active theme tokens for backgrounds, borders, buttons, hints, and success states while keeping math, answers, gates, and progress keys code-owned.
+- Review error, warning, info/status, selected, disabled, input/focus, spinner, meter, and diagram surfaces too; happy-path panel/button colors are not enough.
+
+### Voice Support
+
+- Voice must stay opt-in: use `profile.voiceEnabled`, keep replay controls disabled when Voice is off, and never autoplay without an explicit enabled preference.
+- Every client clip key in `src/voice/voiceClips.ts` must be mirrored in `functions/index.js`; otherwise the callable rejects the request.
+- Safe-before-answer voice clips must not reveal answers, exact counts, equations, or number words that shortcut the learner's task.
+- Feedback voice should use short generic success/try-again clips, not read the full visible feedback or solution.
+- Feedback voice needs a local, non-persisted `playToken` incremented only on fresh answer submissions so saved banners do not speak again on resume.
+- Captions should remain available even when audio generation falls back or the API/cache is unavailable.
 
 ### Persistence Decisions
 

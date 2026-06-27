@@ -28,6 +28,10 @@ Check:
 - challenge gating and duplicate-answer behavior
 - interaction quality and accessibility
 - difficulty fit for the current learner persona/theme in `.agents/theme.md`
+- accidental hardcoding of any specific theme when the lesson should follow `.agents/theme.md` or theme-pack data
+- Home Hub title, description, and emoji stay coherent when the lesson is theme-aware
+- voice controls, captions, and feedback cues follow the opt-in voice pattern when a lesson has voice support
+- client voice clips are mirrored in the Firebase Function catalog when new clip keys are added
 - progress, resume, reset, and completion behavior
 - local state that may need persistence
 

@@ -14,6 +14,7 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID: string
   readonly VITE_AUTH_EMAIL_DOMAIN?: string
   readonly VITE_DEV_USERNAME?: string
+  readonly VITE_FIREBASE_AI_MODEL?: string
 }
 
 interface ImportMeta {

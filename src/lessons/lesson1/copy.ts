@@ -83,10 +83,6 @@ export const screen2MiniLesson: ClickthroughMiniLesson<Screen2Step> = {
   pages: screen2Steps,
 }
 
-export function screen2SummaryButton() {
-  return 'Try the Princess Challenge! 🔥'
-}
-
 export const screen3InteractiveChallenge: InteractiveChallengeContent = {
   id: 'princess-outfit-triples',
   heading: '🥿 Complete the Princess Look!',
@@ -100,18 +96,10 @@ export const screen3InteractiveChallenge: InteractiveChallengeContent = {
     correct: (princessName) =>
       `Spectacular, ${princessName}! **12 unique outfits** is exactly right! You're ready for the grand finale shortcut.`,
     incorrect: (princessName) =>
-      `Close! Think about it, ${princessName}: Every one of your original **6 outfits** now gets **2 options of shoes** (Glass Slippers or Riding Boots).`,
+      `Close! Think about it, ${princessName}: start with one finished look, then check how the shoe choice can change it.`,
     tryAgain: firstTryAgainFeedback,
     solution: () => 'Solution: **2 crowns × 3 dresses × 2 pairs of shoes = 12 total variations**.',
   },
-}
-
-export function screen4Heading() {
-  return '🏆 Princess Designer Confirmed!'
-}
-
-export function screen4Body(princessName: string) {
-  return `Excellent work, ${princessName}! You successfully discovered how **choices stack up** without needing to count every single one by hand.`
 }
 
 const SCREEN4_SHORTCUT_HEADING = '💥 The Ultimate Multiplication Shortcut'

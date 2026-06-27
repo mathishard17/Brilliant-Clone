@@ -10,6 +10,7 @@ import {
 import { loadProfileForSession } from '../services/userProgress'
 import type { UserProfile } from '../types/user'
 import { AuthContext } from './auth-context'
+import type { ThemePreference } from '../themes/themeTypes'
 
 const PROFILE_LOAD_ERROR_MESSAGE =
   "We couldn't load your progress. Check your connection and try again."
@@ -92,13 +93,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile])
 
   const signUp = useCallback(
-    async (username: string, password: string, princessName: string) => {
+    async (
+      username: string,
+      password: string,
+      princessName: string,
+      themePreference: ThemePreference = 'royal',
+    ) => {
       setError(null)
       setSessionMessage(null)
       setAuthenticating(true)
       manualAuthRef.current = true
       try {
-        const credential = await authSignUp(username, password, princessName)
+        const credential = await authSignUp(username, password, princessName, themePreference)
         setUser(credential.user)
         hadUserRef.current = true
         await loadProfile(credential.user.uid)

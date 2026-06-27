@@ -11,6 +11,7 @@ import {
 import { auth } from '../lib/firebase'
 import { createUserProfile, checkUsernameAvailable } from './userProgress'
 import { normalizeUsername } from '../utils/outfitKeys'
+import type { ThemePreference } from '../themes/themeTypes'
 
 const AUTH_EMAIL_DOMAIN = import.meta.env.VITE_AUTH_EMAIL_DOMAIN ?? 'brilliant-clone.local'
 
@@ -22,6 +23,7 @@ export async function signUp(
   username: string,
   password: string,
   princessName: string,
+  themePreference: ThemePreference = 'royal',
 ): Promise<UserCredential> {
   const normalized = normalizeUsername(username)
 
@@ -37,7 +39,7 @@ export async function signUp(
   )
 
   try {
-    await createUserProfile(credential.user.uid, normalized, princessName.trim())
+    await createUserProfile(credential.user.uid, normalized, princessName.trim(), themePreference)
   } catch (error) {
     await deleteUser(credential.user)
     throw error

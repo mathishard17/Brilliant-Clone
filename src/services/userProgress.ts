@@ -9,12 +9,15 @@ import {
 import { db } from '../lib/firebase'
 import {
   DEFAULT_LESSON_ID,
+  LESSON_1_ID,
   createDefaultLessonProgress,
   type LessonProgress,
 } from '../types/lesson'
 import type { ScreenNumber, UserProfile, UsernameRecord } from '../types/user'
 import { normalizeLessonMap, normalizeLessonProgress } from '../utils/lessonProgress'
 import { normalizeUsername } from '../utils/outfitKeys'
+import { normalizeThemePreference } from '../themes/themeResolver'
+import { isValidLesson1ThemePack } from '../themes/themeValidation'
 
 function usersRef(uid: string) {
   return doc(db, 'users', uid)
@@ -33,6 +36,7 @@ export async function createUserProfile(
   uid: string,
   username: string,
   princessName: string,
+  themePreference: UserProfile['themePreference'] = 'royal',
 ): Promise<void> {
   const normalized = normalizeUsername(username)
   const batch = writeBatch(db)
@@ -45,6 +49,10 @@ export async function createUserProfile(
     activeLessonId: DEFAULT_LESSON_ID,
     username: normalized,
     princessName: princessName.trim(),
+    themePreference,
+    customThemeIdea: '',
+    themePacks: {},
+    voiceEnabled: false,
     createdAt: now,
     updatedAt: now,
     lesson: createDefaultLessonProgress(DEFAULT_LESSON_ID),
@@ -74,11 +82,20 @@ function parseUserProfile(data: Record<string, unknown>): UserProfile {
   const activeLessonId = String(data.activeLessonId ?? DEFAULT_LESSON_ID)
   const lesson = lessons[activeLessonId] ?? createDefaultLessonProgress(activeLessonId)
   lessons[activeLessonId] = lesson
+  const rawThemePacks = data.themePacks as UserProfile['themePacks'] | undefined
+  const themePacks: UserProfile['themePacks'] = {}
+  if (isValidLesson1ThemePack(rawThemePacks?.[LESSON_1_ID])) {
+    themePacks[LESSON_1_ID] = rawThemePacks[LESSON_1_ID]
+  }
 
   return {
     activeLessonId,
     username: String(data.username ?? ''),
     princessName: String(data.princessName ?? ''),
+    themePreference: normalizeThemePreference(data.themePreference),
+    customThemeIdea: typeof data.customThemeIdea === 'string' ? data.customThemeIdea : '',
+    themePacks,
+    voiceEnabled: data.voiceEnabled === true,
     createdAt: data.createdAt as UserProfile['createdAt'],
     updatedAt: data.updatedAt as UserProfile['updatedAt'],
     lessons,

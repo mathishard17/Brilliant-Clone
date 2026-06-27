@@ -2,8 +2,17 @@ import { useState, type FormEvent } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { loginBodyLogin, loginBodySignup, loginHeading } from '../copy/login'
 import { normalizeUsername } from '../utils/outfitKeys'
+import type { ThemePreference } from '../themes/themeTypes'
 
 const USERNAME_PATTERN = /^[a-z0-9_]+$/
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'royal', label: 'Royal / Princess' },
+  { value: 'space', label: 'Space Academy' },
+  { value: 'dinosaurs', label: 'Dinosaurs' },
+  { value: 'animals', label: 'Animals' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'surprise', label: 'Surprise me' },
+]
 
 export function PrincessRegistry() {
   const { signUp, signIn, error, clearError, authenticating, sessionMessage, clearSessionMessage } =
@@ -12,6 +21,7 @@ export function PrincessRegistry() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [princessName, setPrincessName] = useState('')
+  const [themePreference, setThemePreference] = useState<ThemePreference>('royal')
   const [submitting, setSubmitting] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
@@ -36,11 +46,11 @@ export function PrincessRegistry() {
     if (mode === 'signup') {
       const trimmedName = princessName.trim()
       if (!trimmedName) {
-        errors.princessName = 'Princess name is required.'
+        errors.princessName = 'Display name is required.'
       } else if (trimmedName.length < 2) {
-        errors.princessName = 'Princess name must be at least 2 characters.'
+        errors.princessName = 'Display name must be at least 2 characters.'
       } else if (trimmedName.length > 40) {
-        errors.princessName = 'Princess name must be 40 characters or fewer.'
+        errors.princessName = 'Display name must be 40 characters or fewer.'
       }
     }
 
@@ -58,7 +68,7 @@ export function PrincessRegistry() {
     try {
       const normalized = normalizeUsername(username.trim())
       if (mode === 'signup') {
-        await signUp(normalized, password, princessName.trim())
+        await signUp(normalized, password, princessName.trim(), themePreference)
       } else {
         await signIn(normalized, password)
       }
@@ -137,20 +147,37 @@ export function PrincessRegistry() {
         </label>
 
         {mode === 'signup' && (
-          <label>
-            What Princess Name would you like to be called?
-            <input
-              type="text"
-              className="form-input"
-              value={princessName}
-              onChange={(e) => setPrincessName(e.target.value)}
-              placeholder="e.g. Princess Sarah"
-              maxLength={40}
-            />
-            {fieldErrors.princessName && (
-              <span className="field-error">{fieldErrors.princessName}</span>
-            )}
-          </label>
+          <>
+            <label>
+              What display name would you like to use?
+              <input
+                type="text"
+                className="form-input"
+                value={princessName}
+                onChange={(e) => setPrincessName(e.target.value)}
+                placeholder="e.g. Sophia the Solver"
+                maxLength={40}
+              />
+              {fieldErrors.princessName && (
+                <span className="field-error">{fieldErrors.princessName}</span>
+              )}
+            </label>
+
+            <label>
+              What kind of adventure do you like?
+              <select
+                className="form-input"
+                value={themePreference}
+                onChange={(e) => setThemePreference(e.target.value as ThemePreference)}
+              >
+                {THEME_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
         )}
 
         {sessionMessage && <p className="session-banner">{sessionMessage}</p>}

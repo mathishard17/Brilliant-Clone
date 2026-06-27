@@ -4,34 +4,62 @@ import { Closet, type ClosetCategory } from '../components/Closet'
 import { ChallengeQuestion } from '../components/ChallengeQuestion'
 import { DefaultInteractiveVisualization } from '../components/DefaultInteractiveVisualization'
 import { FeedbackBanner } from '../components/FeedbackBanner'
+import { HintButton } from '../components/HintButton'
 import { LessonText } from '../components/LessonText'
 import { LessonButton } from '../components/LessonButton'
 import { ScreenBackButton } from '../components/ScreenBackButton'
+import { VoiceButton } from '../components/VoiceButton'
 import { OutfitLog } from '../components/OutfitLog'
 import { PrincessCanvas } from '../components/PrincessCanvas'
 import { screen1InteractiveChallenge } from '../lessons/lesson1/copy'
 import { useLesson } from '../hooks/useLesson'
 import { CROWNS, DRESSES } from '../lessons/lesson1/data'
+import { LESSON_1_ID } from '../types/lesson'
 import { useOutfitTracker } from '../hooks/useOutfitTracker'
 import type { OutfitPair } from '../types/lesson'
+import {
+  getLesson1ThemeCopy,
+  getLesson1ThemeVisual,
+  getThemeCategory,
+  getThemeItemLabels,
+  getThemeItemMotifs,
+  getThemeMotif,
+  lesson1ThemeStyle,
+  resolveLesson1Theme,
+  themedItems,
+} from '../themes/themeResolver'
 
 interface DressingRoomProps {
   princessName: string
 }
 
-const CLOSET_CATEGORIES: ClosetCategory[] = [
-  { key: 'crowns', title: 'Sparkly Crowns', items: CROWNS },
-  { key: 'dresses', title: 'Princess Gowns', items: DRESSES },
-]
-
 export function DressingRoom({ princessName }: DressingRoomProps) {
   const { profile, recordOutfitPair, updateLesson, updateScreen } = useLesson()
   const screen1 = profile.lesson.screen1
   const content = screen1InteractiveChallenge
+  const theme = resolveLesson1Theme(profile.themePreference, profile.themePacks)
+  const copy = getLesson1ThemeCopy(theme)
+  const visual = getLesson1ThemeVisual(theme)
+  const itemLabels = getThemeItemLabels(theme)
+  const itemMotifs = getThemeItemMotifs(theme)
+  const motif = getThemeMotif(theme)
+  const crowns = getThemeCategory(theme, 'crowns')
+  const dresses = getThemeCategory(theme, 'dresses')
+  const lookName = copy.lookNamePlural
+  const crownsLabel = crowns?.label ?? 'category 1'
+  const dressesLabel = dresses?.label ?? 'category 2'
+  const challengePrompt = `How many completely **unique ${lookName}** can you make in total? (A look is one choice from the ${crownsLabel} category and one choice from the ${dressesLabel} category.)`
+  const detailedIncorrectMessage = `Not quite, ${princessName}! Try locking one choice from **${crownsLabel}** first, then count every choice from **${dressesLabel}** that can go with it.`
+  const solutionMessage = `Solution: **2 ${crownsLabel} × 3 ${dressesLabel} = 6 unique ${lookName}**.`
+  const closetCategories: ClosetCategory[] = [
+    { key: 'crowns', title: crowns?.label ?? 'Sparkly Crowns', items: crowns ? themedItems(crowns, theme) : CROWNS },
+    { key: 'dresses', title: dresses?.label ?? 'Princess Gowns', items: dresses ? themedItems(dresses, theme) : DRESSES },
+  ]
 
   const [answerInput, setAnswerInput] = useState(
     screen1.answer !== null ? String(screen1.answer) : '',
   )
+  const [feedbackVoiceToken, setFeedbackVoiceToken] = useState(0)
   const wrongAttempts = screen1.wrongAttempts
   const submitted = screen1.answer !== null
 
@@ -71,19 +99,34 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
         wrongAttempts: isCorrect ? screen1.wrongAttempts : screen1.wrongAttempts + 1,
       },
     })
+    setFeedbackVoiceToken((token) => token + 1)
   }
 
   return (
-    <section className="lesson-screen dressing-room">
+    <section className="lesson-screen lesson-screen--themed dressing-room" style={lesson1ThemeStyle(theme)}>
       <ScreenBackButton label="← Back to Academy" onClick={() => void updateScreen(0)} />
-      <h1>{content.heading}</h1>
-      <LessonText text={content.body(princessName)} />
+      <h1>{copy.screen1Heading}</h1>
+      <LessonText text={`${princessName}, ${theme.intro}`} />
+      <VoiceButton
+        autoPlay={screen1.isCorrect !== true}
+        enabled={profile.voiceEnabled}
+        lessonId={LESSON_1_ID}
+        clipKey="lesson1.screen1.welcome"
+        themePreference={profile.themePreference}
+        label="Listen to this part"
+      />
 
       {content.visualization === 'outfit-pairs' ? (
         <>
           <div className="lesson-screen__play-area">
-            <Closet categories={CLOSET_CATEGORIES} selected={selected} onSelect={handleSelect} />
-            <PrincessCanvas crownId={crownId} dressId={dressId} />
+            <Closet categories={closetCategories} selected={selected} onSelect={handleSelect} />
+            <PrincessCanvas
+              crownId={crownId}
+              dressId={dressId}
+              variant={visual.character}
+              characterConfig={visual.characterConfig}
+              itemStyles={itemMotifs}
+            />
           </div>
 
           <OutfitLog
@@ -91,6 +134,13 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
             total={screen1.discoveredOutfits.length}
             mode="pair"
             onReset={() => void handleReset()}
+            heading={copy.logHeading}
+            emptyMessage={copy.logEmpty}
+            counterLabel={copy.logCounter}
+            itemLabels={itemLabels}
+            itemMotifs={itemMotifs}
+            motifColor={motif.primary}
+            motifShape={motif.shape}
           />
         </>
       ) : (
@@ -98,7 +148,7 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
       )}
 
       <ChallengeQuestion
-        prompt={content.prompt}
+        prompt={challengePrompt}
         value={answerInput}
         onChange={setAnswerInput}
         onSubmit={handleSubmit}
@@ -107,21 +157,40 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
         allowRetry={submitted && screen1.isCorrect === false}
       />
 
+      <HintButton
+        prompt={challengePrompt}
+        context={`The learner is counting possible ${lookName} from one choice in ${crownsLabel} and one choice in ${dressesLabel}.`}
+        fallbackHint={`Try holding one ${crownsLabel} choice still, then list what can pair with it from ${dressesLabel}.`}
+        blockedAnswerTerms={['6', 'six', '2 × 3', '2 x 3', 'two times three']}
+        disabled={!submitted || screen1.isCorrect === true}
+      />
+
       {submitted && screen1.isCorrect !== null && (
         <FeedbackBanner
           variant={screen1.isCorrect ? 'success' : 'error'}
+          voiceCue={{
+            correctClipKey: 'lesson1.feedback.correct',
+            enabled: profile.voiceEnabled,
+            lessonId: LESSON_1_ID,
+            playToken: feedbackVoiceToken || null,
+            themePreference: profile.themePreference,
+            tryAgainClipKey: 'lesson1.feedback.tryAgain',
+          }}
           message={
             screen1.isCorrect
-              ? content.feedback.correct(princessName)
+              ? `${theme.feedback.correct} You found all **6 combinations**, ${princessName}!`
               : wrongAttempts >= 2
-                ? content.feedback.incorrect(princessName)
-                : content.feedback.tryAgain(princessName)
+                ? detailedIncorrectMessage
+                : `${theme.feedback.tryAgain} ${princessName}!`
           }
         />
       )}
 
       {submitted && screen1.isCorrect === false && wrongAttempts >= 3 && (
-        <FeedbackBanner variant="info" message={content.feedback.solution(princessName)} />
+        <FeedbackBanner
+          variant="info"
+          message={`Solution reveal: ${theme.feedback.hint}\n\n${solutionMessage}`}
+        />
       )}
 
       {submitted && screen1.isCorrect && (

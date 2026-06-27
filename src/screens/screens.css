@@ -5,6 +5,199 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   position: relative;
+  --lesson-choice-selected-bg: #ede9fe;
+  --lesson-choice-selected-text: #4c1d95;
+  --lesson-choice-selected-border: #7c3aed;
+  --lesson-choice-selected-ring: rgb(124 58 237 / 0.22);
+}
+
+.lesson-screen--themed {
+  background: var(--theme-screen-bg, white);
+  border: 2px solid var(--theme-border, transparent);
+  color: var(--theme-text, var(--color-text));
+  --lesson-choice-selected-bg: var(--theme-selected-bg, var(--theme-hint-bg, #ede9fe));
+  --lesson-choice-selected-text: var(--theme-selected-text, var(--theme-accent, #4c1d95));
+  --lesson-choice-selected-border: var(--theme-selected-border, var(--theme-accent, #7c3aed));
+  --lesson-choice-selected-ring: color-mix(in srgb, var(--theme-selected-ring, var(--theme-accent, #7c3aed)) 24%, transparent);
+}
+
+.lesson-screen--themed .home-hub__theme-panel,
+.lesson-screen--themed .outfit-log,
+.lesson-screen--themed .lesson-summary__shortcut,
+.lesson-screen--themed .lesson-summary__practice {
+  background: var(--theme-panel-bg, #faf5ff);
+  border-color: var(--theme-border, var(--color-border));
+}
+
+.lesson-screen--themed h1,
+.lesson-screen--themed h2,
+.lesson-screen--themed .closet__title,
+.lesson-screen--themed .lesson-summary__equation {
+  color: var(--theme-accent, var(--color-primary));
+}
+
+.lesson-screen--themed .lesson-btn {
+  background: var(--theme-button-bg, var(--color-primary));
+  color: var(--theme-button-text, #fff);
+  border: 2px solid var(--theme-button-border, var(--theme-accent, var(--color-primary)));
+}
+
+.lesson-screen--themed .lesson-btn--secondary {
+  background: #fff;
+  color: var(--theme-button-text, var(--color-primary));
+  border-color: var(--theme-button-border, var(--color-border));
+}
+
+.lesson-screen .lesson-btn,
+.lesson-screen .home-hub__page-btn,
+.lesson-screen .home-hub__reset-btn,
+.lesson-screen .marble-visualization__choice,
+.lesson-screen .treasure-bag__choice,
+.lesson-screen .combination-sort__choice,
+.lesson-screen .chance-spinner-card__prize,
+.lesson-screen .chance-challenge__choice {
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s,
+    color 0.15s,
+    transform 0.12s,
+    opacity 0.15s;
+}
+
+.lesson-screen .lesson-btn:active:not(:disabled),
+.lesson-screen .home-hub__page-btn:active:not(:disabled),
+.lesson-screen .home-hub__reset-btn:active:not(:disabled),
+.lesson-screen .marble-visualization__choice:active:not(:disabled),
+.lesson-screen .treasure-bag__choice:active:not(:disabled),
+.lesson-screen .combination-sort__choice:active:not(:disabled),
+.lesson-screen .chance-spinner-card__prize:active:not(:disabled),
+.lesson-screen .chance-challenge__choice:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.lesson-screen .lesson-btn--secondary:active:not(:disabled),
+.lesson-screen .home-hub__page-btn:active:not(:disabled),
+.lesson-screen .home-hub__reset-btn:active:not(:disabled),
+.lesson-screen .marble-visualization__choice:active:not(:disabled),
+.lesson-screen .treasure-bag__choice:active:not(:disabled),
+.lesson-screen .combination-sort__choice:active:not(:disabled),
+.lesson-screen .chance-spinner-card__prize:active:not(:disabled),
+.lesson-screen .chance-challenge__choice:active:not(:disabled),
+.lesson-screen .marble-visualization__choice--used,
+.lesson-screen .treasure-bag__choice--selected,
+.lesson-screen .chance-spinner-card__prize--selected,
+.lesson-screen .chance-challenge__choice--selected {
+  background: var(--lesson-choice-selected-bg);
+  color: var(--lesson-choice-selected-text);
+  border-color: var(--lesson-choice-selected-border);
+  box-shadow:
+    inset 0 0 0 2px var(--lesson-choice-selected-border),
+    0 0 0 3px var(--lesson-choice-selected-ring);
+}
+
+.lesson-screen button[aria-pressed='true'],
+.lesson-screen button[aria-selected='true'],
+.lesson-screen .lesson-btn--pressed {
+  border-color: var(--lesson-choice-selected-border);
+  box-shadow:
+    inset 0 0 0 2px var(--lesson-choice-selected-border),
+    0 0 0 3px var(--lesson-choice-selected-ring);
+}
+
+.lesson-screen--themed .hint-button__message,
+.lesson-screen--themed .voice-button__caption,
+.lesson-screen--themed .feedback-banner--info {
+  background: var(--theme-hint-bg, #eff6ff);
+  color: var(--theme-hint-text, #1e40af);
+  border-color: var(--theme-button-border, #93c5fd);
+}
+
+.lesson-screen--themed .feedback-banner--success {
+  background: var(--theme-success-bg, #ecfdf5);
+  color: var(--theme-success-text, #065f46);
+  border-color: var(--theme-success-border, #22c55e);
+  box-shadow:
+    inset 0.35rem 0 0 var(--theme-success-border, #22c55e),
+    0 0 0 3px color-mix(in srgb, var(--theme-success-border, #22c55e) 18%, transparent);
+}
+
+.lesson-screen--themed .feedback-banner--error,
+.lesson-screen--themed .challenge__repeat-warning {
+  background: var(--theme-error-bg, #fee2e2);
+  color: var(--theme-error-text, #991b1b);
+  border-color: var(--theme-error-border, #ef4444);
+  box-shadow:
+    inset 0.35rem 0 0 var(--theme-error-border, #ef4444),
+    0 0 0 3px color-mix(in srgb, var(--theme-error-border, #ef4444) 18%, transparent);
+}
+
+.lesson-screen--themed .voice-button__status {
+  background: var(--theme-status-bg, var(--theme-hint-bg, #fff7ed));
+  color: var(--theme-status-text, var(--theme-hint-text, #9a3412));
+  border-color: var(--theme-status-border, var(--theme-button-border, #fed7aa));
+}
+
+.lesson-screen--themed .challenge__input,
+.lesson-screen--themed .form-input {
+  background: var(--theme-input-bg, var(--theme-button-bg, #fff));
+  color: var(--theme-input-text, var(--theme-button-text, var(--color-text)));
+  border-color: var(--theme-input-border, var(--theme-button-border, var(--color-border)));
+}
+
+.lesson-screen--themed .challenge__input:focus,
+.lesson-screen--themed .form-input:focus {
+  border-color: var(--theme-selected-border, var(--theme-accent, var(--color-primary)));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-focus-ring, var(--theme-accent, #7c3aed)) 24%, transparent);
+  outline: none;
+}
+
+.lesson-screen--themed button:disabled,
+.lesson-screen--themed .home-hub__lesson-card--disabled {
+  background: var(--theme-disabled-bg, #f5f5f5);
+  color: var(--theme-disabled-text, var(--theme-muted-text, var(--color-text-muted)));
+  border-color: var(--theme-disabled-border, var(--theme-border, var(--color-border)));
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.voice-button {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  margin: 0.75rem auto 1rem;
+}
+
+.voice-button__caption,
+.voice-button__status {
+  max-width: 42rem;
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border: 2px solid var(--color-border);
+  border-radius: calc(var(--radius) * 0.75);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.voice-button__caption {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.voice-button__status {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
 }
 
 .screen-back {
@@ -21,6 +214,10 @@
   align-self: flex-start;
 }
 
+.lesson-screen--themed .screen-back {
+  color: var(--theme-accent, var(--color-primary));
+}
+
 .screen-back:hover {
   text-decoration: underline;
 }
@@ -28,6 +225,41 @@
 /* Home hub */
 .home-hub__welcome {
   margin-bottom: 1.5rem;
+}
+
+.lesson-screen--themed .home-hub__welcome,
+.lesson-screen--themed .home-hub__theme-message,
+.lesson-screen--themed .home-hub__pagination,
+.lesson-screen--themed .home-hub__lesson-desc {
+  color: var(--theme-hint-text, var(--color-text-muted));
+}
+
+.lesson-screen--themed .home-hub__welcome strong,
+.lesson-screen--themed .home-hub__lesson-title {
+  color: var(--theme-accent, var(--color-primary));
+}
+
+.home-hub__theme-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  text-align: left;
+  background: #faf5ff;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.home-hub__theme-panel label {
+  margin-bottom: 0;
+}
+
+.home-hub__theme-message {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .home-hub__lessons {
@@ -61,6 +293,10 @@
   transform: translateY(-2px);
 }
 
+.lesson-screen--themed .home-hub__lesson-card--active:hover {
+  border-color: var(--theme-accent, var(--color-primary));
+}
+
 .home-hub__lesson-card--disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -91,6 +327,11 @@
   background: #ecfdf5;
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
+}
+
+.lesson-screen--themed .home-hub__lesson-badge {
+  color: var(--theme-success-text, #065f46);
+  background: var(--theme-success-bg, #ecfdf5);
 }
 
 .home-hub__lesson-entry {
@@ -332,7 +573,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 10 / 13;
-  background: linear-gradient(180deg, #fce7f3 0%, #f3e8ff 100%);
+  background: linear-gradient(180deg, var(--theme-stage-bg, #fce7f3) 0%, #f3e8ff 100%);
   border-radius: var(--radius-soft);
   border: 2px solid var(--color-border);
   overflow: hidden;
@@ -340,6 +581,14 @@
   align-items: center;
   justify-content: center;
   padding: 0.75rem;
+}
+
+.princess-canvas--astronaut .princess-canvas__stage {
+  background:
+    radial-gradient(circle at 20% 18%, #fff 0 1.5%, transparent 1.7%),
+    radial-gradient(circle at 72% 24%, #fff 0 1.2%, transparent 1.4%),
+    radial-gradient(circle at 84% 70%, #fff 0 1.4%, transparent 1.6%),
+    linear-gradient(180deg, var(--theme-stage-bg, #dbeafe) 0%, #1e3a8a 100%);
 }
 
 .princess-canvas__figure {
@@ -467,6 +716,26 @@
   font-weight: 700;
 }
 
+.hint-button {
+  margin: -0.35rem 0 1rem;
+  text-align: left;
+}
+
+.hint-button .lesson-btn {
+  width: auto;
+  margin: 0;
+}
+
+.hint-button__message {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 2px solid #93c5fd;
+  border-radius: var(--radius-soft);
+  font-weight: 700;
+}
+
 /* Default visualization */
 .default-visualization {
   display: flex;
@@ -550,7 +819,7 @@
 }
 
 .marble-visualization__choice--used {
-  opacity: 0.5;
+  opacity: 1;
 }
 
 .marble-visualization__marble {
@@ -706,7 +975,7 @@
 }
 
 .treasure-bag__choice--selected {
-  opacity: 0.5;
+  opacity: 1;
 }
 
 .treasure-bag__actions .lesson-btn,
@@ -978,13 +1247,15 @@
 .feedback-banner--success {
   background: linear-gradient(135deg, #ecfdf5 0%, #fef3c7 100%);
   color: #065f46;
-  border: 2px solid var(--color-gold);
+  border: 2px solid #22c55e;
+  box-shadow: inset 0.35rem 0 0 #22c55e;
 }
 
 .feedback-banner--error {
-  background: #faf5ff;
-  color: #5b21b6;
-  border: 2px solid #c4b5fd;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 2px solid #ef4444;
+  box-shadow: inset 0.35rem 0 0 #ef4444;
 }
 
 .feedback-banner--info {
@@ -1022,6 +1293,14 @@
 .lesson-summary__step-body strong,
 .lesson-summary__intro strong {
   color: #5b21b6;
+}
+
+.lesson-screen--themed .anchor-lesson__text strong,
+.lesson-screen--themed .lesson-summary__step-body strong,
+.lesson-screen--themed .lesson-summary__intro strong,
+.lesson-screen--themed .chance-equation,
+.lesson-screen--themed .lesson-summary__equation {
+  color: var(--theme-equation-accent, var(--theme-accent, var(--color-primary)));
 }
 
 .anchor-lesson__step-label {
@@ -1340,6 +1619,14 @@
   transform: scale(1.15);
 }
 
+.lesson-screen--themed .clickthrough-mini-lesson__dot {
+  background: var(--theme-border, var(--color-border));
+}
+
+.lesson-screen--themed .clickthrough-mini-lesson__dot--active {
+  background: var(--theme-selected-border, var(--theme-accent, var(--color-primary)));
+}
+
 .lesson-summary__shortcut {
   background: #faf5ff;
   border-radius: var(--radius);
@@ -1394,7 +1681,7 @@
 
 .lesson-5-spinner {
   position: relative;
-  --lesson-5-label-radius: 4.35rem;
+  --lesson-5-label-radius: 4.8rem;
   width: min(82vw, 18rem);
   aspect-ratio: 1;
   margin: 0 auto;
@@ -1406,7 +1693,7 @@
 }
 
 .lesson-5-spinner--6 {
-  --lesson-5-label-radius: 4.9rem;
+  --lesson-5-label-radius: 5.35rem;
   width: min(82vw, 20rem);
 }
 
@@ -1884,7 +2171,7 @@
 
 .chance-spinner {
   position: relative;
-  --chance-label-radius: 5.15rem;
+  --chance-label-radius: 5.7rem;
   width: min(82vw, 20rem);
   aspect-ratio: 1;
   border: 5px solid #7c3aed;
@@ -2077,4 +2364,97 @@
 
 .chance-equation p {
   margin: 0.25rem 0;
+}
+
+/* Cross-lesson themed overrides for later lesson UI chrome */
+.lesson-screen--themed .chance-spinner-card,
+.lesson-screen--themed .chance-challenge,
+.lesson-screen--themed .chance-equation,
+.lesson-screen--themed .lesson-5-tray,
+.lesson-screen--themed .lesson-5-meter,
+.lesson-screen--themed .lesson-5-two-spinners,
+.lesson-screen--themed .lesson-5-mini-spinner {
+  background: var(--theme-panel-bg, #faf5ff);
+  border-color: var(--theme-border, var(--color-border));
+  color: var(--theme-text, var(--color-text));
+}
+
+.lesson-screen--themed .chance-spinner-card__header h2,
+.lesson-screen--themed .chance-challenge__prompt,
+.lesson-screen--themed .lesson-5-tray h2,
+.lesson-screen--themed .lesson-5-meter h2,
+.lesson-screen--themed .lesson-5-mini-spinner h3,
+.lesson-screen--themed .lesson-5-two-spinners__outcomes h3 {
+  color: var(--theme-accent, var(--color-primary));
+}
+
+.lesson-screen--themed .chance-spinner-card__header p,
+.lesson-screen--themed .chance-spinner-card__count,
+.lesson-screen--themed .lesson-5-tray__empty,
+.lesson-screen--themed .lesson-5-tray__total,
+.lesson-screen--themed .lesson-5-meter__note,
+.lesson-screen--themed .lesson-5-two-spinners__plus {
+  color: var(--theme-muted-text, var(--color-text-muted));
+}
+
+.lesson-screen--themed .chance-spinner,
+.lesson-screen--themed .lesson-5-spinner,
+.lesson-screen--themed .lesson-5-mini-spinner__wheel {
+  border-color: var(--theme-spinner-rim, var(--theme-accent, #7c3aed));
+  background: var(--theme-panel-bg, #faf5ff);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--theme-spinner-rim, #7c3aed) 18%, transparent);
+}
+
+.lesson-screen--themed .chance-spinner__arrow,
+.lesson-screen--themed .lesson-5-spinner__pointer,
+.lesson-screen--themed .lesson-5-mini-spinner__pointer {
+  border-top-color: var(--theme-spinner-pointer, var(--theme-accent, #5b21b6));
+}
+
+.lesson-screen--themed .chance-spinner__hub,
+.lesson-screen--themed .lesson-5-mini-spinner__wheel::after {
+  background: var(--theme-spinner-hub-bg, var(--theme-accent, #7c3aed));
+  color: var(--theme-spinner-hub-text, #fff);
+  border-color: var(--theme-spinner-separator, var(--theme-button-bg, #fff));
+}
+
+.lesson-screen--themed .chance-spinner__space,
+.lesson-screen--themed .chance-spinner-card__prize,
+.lesson-screen--themed .chance-challenge__choice,
+.lesson-screen--themed .lesson-5-spinner__space,
+.lesson-screen--themed .lesson-5-two-spinners__token {
+  background: var(--theme-neutral-bg, var(--theme-button-bg, #fff));
+  color: var(--theme-neutral-text, var(--theme-button-text, var(--color-text)));
+  border-color: var(--theme-neutral-border, var(--theme-button-border, var(--color-border)));
+}
+
+.lesson-screen--themed .chance-spinner__space--selected,
+.lesson-screen--themed .chance-spinner__space--landed,
+.lesson-screen--themed .chance-spinner-card__prize--selected,
+.lesson-screen--themed .chance-challenge__choice--selected,
+.lesson-screen--themed .lesson-5-spinner__space--selected,
+.lesson-screen--themed .lesson-5-mini-spinner__half--selected {
+  outline-color: var(--theme-selected-border, var(--theme-accent, #7c3aed));
+  background: var(--theme-selected-bg, var(--theme-hint-bg, #ede9fe));
+  color: var(--theme-selected-text, var(--theme-accent, #4c1d95));
+  border-color: var(--theme-selected-border, var(--theme-accent, #7c3aed));
+}
+
+.lesson-screen--themed .lesson-5-tray__card {
+  border-color: var(--theme-neutral-border, var(--theme-border, var(--color-border)));
+  color: var(--theme-neutral-text, var(--color-text));
+}
+
+.lesson-screen--themed .lesson-5-meter__bar {
+  background: var(--theme-meter-track, var(--theme-border, #e9d5ff));
+}
+
+.lesson-screen--themed .lesson-5-meter__result {
+  background: var(--theme-error-bg, #fdf2f8);
+  color: var(--theme-error-text, #9d174d);
+}
+
+.lesson-screen--themed .lesson-5-meter__result--fair {
+  background: var(--theme-success-bg, #ecfdf5);
+  color: var(--theme-success-text, #047857);
 }

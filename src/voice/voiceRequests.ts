@@ -1,0 +1,56 @@
+import { createVoiceCacheKey, createVoiceFallbackResponse } from './voiceCache'
+import { getVoiceClip } from './voiceClips'
+import { getThemeVoiceProfile } from './voiceProfiles'
+import type { Lesson1ThemePack } from '../themes/themeTypes'
+import type {
+  LessonVoiceClip,
+  ThemeVoiceProfile,
+  VoiceClipRequest,
+  VoiceClipResponse,
+  VoiceValidationResult,
+} from './voiceTypes'
+import { validateLessonVoiceClip, validateThemeVoiceProfile } from './voiceValidation'
+
+export interface ResolvedVoiceClipRequest {
+  clip: LessonVoiceClip
+  profile: ThemeVoiceProfile
+  cacheKey: string
+  fallbackResponse: VoiceClipResponse
+}
+
+export function resolveVoiceClipRequest(
+  request: VoiceClipRequest,
+  themePack?: Lesson1ThemePack | null,
+): ResolvedVoiceClipRequest | null {
+  const clip = getVoiceClip(request.clipKey, themePack)
+  if (!clip || clip.lessonId !== request.lessonId) return null
+
+  const profile = getThemeVoiceProfile(request.themePreference)
+  return {
+    clip,
+    profile,
+    cacheKey: createVoiceCacheKey({
+      provider: profile.provider,
+      themePreference: profile.themePreference,
+      lessonId: clip.lessonId,
+      clipKey: clip.clipKey,
+      scriptHash: clip.scriptHash,
+    }),
+    fallbackResponse: createVoiceFallbackResponse(clip),
+  }
+}
+
+export function validateResolvedVoiceClipRequest({
+  clip,
+  profile,
+}: ResolvedVoiceClipRequest): VoiceValidationResult {
+  const errors = [
+    ...validateThemeVoiceProfile(profile).errors,
+    ...validateLessonVoiceClip(clip).errors,
+  ]
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  }
+}

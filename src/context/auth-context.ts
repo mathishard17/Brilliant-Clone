@@ -1,6 +1,7 @@
 import { createContext } from 'react'
 import type { User } from 'firebase/auth'
 import type { UserProfile } from '../types/user'
+import type { ThemePreference } from '../themes/themeTypes'
 
 export interface AuthContextValue {
   user: User | null
@@ -10,7 +11,7 @@ export interface AuthContextValue {
   error: string | null
   profileError: string | null
   sessionMessage: string | null
-  signUp: (username: string, password: string, princessName: string) => Promise<void>
+  signUp: (username: string, password: string, princessName: string, themePreference?: ThemePreference) => Promise<void>
   signIn: (username: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
