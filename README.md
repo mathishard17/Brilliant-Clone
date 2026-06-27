@@ -1,4 +1,4 @@
-# Counting Adventures
+# SCHEMAS
 
 Interactive themed combinatorics and probability lessons for 3rd graders, built as a Brilliant-style React app with Firebase Auth, Firestore progress, Firebase Hosting, and early AI personalization.
 
