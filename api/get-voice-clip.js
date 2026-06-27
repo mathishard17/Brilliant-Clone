@@ -1,4 +1,9 @@
 import { getOpenAiApiKey, requirePost, requestOpenAiJson } from './_openai.js'
+import {
+  createVoiceCacheKey,
+  getFirebaseStorageBucket,
+  getSignedVoiceUrl,
+} from './firebase-admin.js'
 
 const CARTESIA_BYTES_URL = 'https://api.cartesia.ai/tts/bytes'
 const CARTESIA_VERSION = process.env.CARTESIA_VERSION || '2024-11-13'
@@ -90,6 +95,27 @@ function validateVoiceClip(clip) {
   return errors
 }
 
+function validateGeneratedFeedbackClip(clip, outcome) {
+  const errors = validateVoiceClip({
+    ...clip,
+    // Feedback has its own safety check below. The generic safeBeforeAnswer
+    // validator is intentionally stricter than short wrong-answer coaching.
+    revealPolicy: outcome === 'tryAgain' ? 'postCorrect' : clip.revealPolicy,
+  })
+
+  if (outcome === 'tryAgain') {
+    const combinedText = `${clip.text} ${clip.caption}`
+    if (DIGIT_OR_EQUATION_PATTERN.test(combinedText)) {
+      errors.push('tryAgain feedback includes a digit or equation symbol.')
+    }
+    if (/\b(the answer is|solution is|equals|total is|there are)\b/i.test(combinedText)) {
+      errors.push('tryAgain feedback includes reveal-style wording.')
+    }
+  }
+
+  return errors
+}
+
 function getCartesiaVoiceId(themePreference) {
   const safePreference = THEME_PREFERENCES.includes(themePreference) ? themePreference : 'royal'
   const envName = `CARTESIA_VOICE_ID_${safePreference.toUpperCase()}`
@@ -125,8 +151,21 @@ function getCacheBust(value) {
   return typeof value === 'string' ? value.trim().slice(0, 80) : ''
 }
 
+function getStorageCacheScope(body) {
+  const requestedScope = body.storageCacheScope === 'user' ? 'user' : 'global'
+  const userId = typeof body.storageCacheUserId === 'string'
+    ? body.storageCacheUserId.trim().slice(0, 140)
+    : ''
+
+  if (requestedScope === 'user' && !userId) {
+    return { enabled: false, scope: 'user', userId: '' }
+  }
+
+  return { enabled: true, scope: requestedScope, userId }
+}
+
 function applyCacheBustToClip(clip, cacheBust) {
-  if (!cacheBust) return clip
+  if (!cacheBust || !isFeedbackClip(clip)) return clip
 
   return {
     ...clip,
@@ -205,7 +244,9 @@ async function createAiFeedbackClip({ clip, feedbackContext, themePreference }) 
       ),
     }
 
-    return validateVoiceClip(generatedClip).length === 0 ? generatedClip : clip
+    return validateGeneratedFeedbackClip(generatedClip, feedbackContext.outcome).length === 0
+      ? generatedClip
+      : clip
   } catch {
     return clip
   }
@@ -213,6 +254,25 @@ async function createAiFeedbackClip({ clip, feedbackContext, themePreference }) 
 
 function createAudioDataUrl(audio) {
   return `data:audio/mpeg;base64,${Buffer.from(audio).toString('base64')}`
+}
+
+async function getCachedVoiceMetadata(file, fallbackClip) {
+  try {
+    const [metadata] = await file.getMetadata()
+    const customMetadata = metadata?.metadata ?? {}
+    const caption = typeof customMetadata.caption === 'string' && customMetadata.caption.trim()
+      ? customMetadata.caption
+      : fallbackClip.caption
+    const scriptHash = typeof customMetadata.scriptHash === 'string' && customMetadata.scriptHash.trim()
+      ? customMetadata.scriptHash
+      : fallbackClip.scriptHash
+    return { caption, scriptHash }
+  } catch {
+    return {
+      caption: fallbackClip.caption,
+      scriptHash: fallbackClip.scriptHash,
+    }
+  }
 }
 
 async function generateCartesiaMp3({ apiKey, text, voiceId }) {
@@ -253,6 +313,7 @@ export default async function handler(request, response) {
   const clip = body.clip
   const themePreference = typeof body.themePreference === 'string' ? body.themePreference : 'royal'
   const cacheBust = getCacheBust(body.cacheBust)
+  const storageCache = getStorageCacheScope(body)
   const feedbackContext = getFeedbackContext(body.feedbackContext) ?? getFallbackFeedbackContext(clip)
 
   const validationErrors = validateVoiceClip(clip)
@@ -281,17 +342,82 @@ export default async function handler(request, response) {
       feedbackContext,
       themePreference,
     })
+    const shouldUseStorageCache = !isFeedbackClip(voiceClip)
+    let bucket = shouldUseStorageCache && storageCache.enabled ? getFirebaseStorageBucket() : null
+    const cacheKey = createVoiceCacheKey({
+      lessonId: voiceClip.lessonId,
+      themePreference,
+      clipKey: voiceClip.clipKey,
+      scriptHash: voiceClip.scriptHash,
+      storageCacheScope: storageCache.scope,
+      storageCacheUserId: storageCache.userId,
+    })
+
+    if (bucket) {
+      try {
+        const file = bucket.file(cacheKey)
+        const [exists] = await file.exists()
+        if (exists) {
+          const cachedMetadata = await getCachedVoiceMetadata(file, voiceClip)
+          response.status(200).json({
+            status: 'ready',
+            audioUrl: await getSignedVoiceUrl(file),
+            caption: cachedMetadata.caption,
+            scriptHash: cachedMetadata.scriptHash,
+            cacheSource: 'firebase-storage',
+          })
+          return
+        }
+      } catch {
+        bucket = null
+      }
+    }
+
     const audio = await generateCartesiaMp3({
       apiKey: cartesiaApiKey,
       text: voiceClip.text,
       voiceId: getCartesiaVoiceId(themePreference),
     })
 
+    if (bucket) {
+      try {
+        const file = bucket.file(cacheKey)
+        await file.save(Buffer.from(audio), {
+          contentType: 'audio/mpeg',
+          metadata: {
+            cacheControl: 'public, max-age=31536000, immutable',
+            metadata: {
+              provider: 'cartesia',
+              themePreference,
+              lessonId: voiceClip.lessonId,
+              clipKey: voiceClip.clipKey,
+              scriptHash: voiceClip.scriptHash,
+              caption: voiceClip.caption,
+              text: voiceClip.text,
+              storageCacheScope: storageCache.scope,
+            },
+          },
+        })
+
+        response.status(200).json({
+          status: 'ready',
+          audioUrl: await getSignedVoiceUrl(file),
+          caption: voiceClip.caption,
+          scriptHash: voiceClip.scriptHash,
+          cacheSource: 'firebase-storage-new',
+        })
+        return
+      } catch {
+        // Storage caching is best-effort; the generated audio can still play as a data URL.
+      }
+    }
+
     response.status(200).json({
       status: 'ready',
       audioUrl: createAudioDataUrl(audio),
       caption: voiceClip.caption,
       scriptHash: voiceClip.scriptHash,
+      cacheSource: 'data-url',
     })
   } catch (error) {
     response.status(200).json(

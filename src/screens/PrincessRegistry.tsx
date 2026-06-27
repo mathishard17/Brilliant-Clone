@@ -112,7 +112,7 @@ export function PrincessRegistry() {
 
   return (
     <section className="screen-placeholder registry card">
-      <p className="registry__eyebrow">Math map adventure</p>
+      <p className="registry__eyebrow">Schemas adventure</p>
       <h1 className="heading-display">{loginCopy.heading}</h1>
       <p>{loginCopy.body[mode]}</p>
 

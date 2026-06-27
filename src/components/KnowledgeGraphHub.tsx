@@ -476,10 +476,10 @@ export function KnowledgeGraphHub({
         onPointerUp={stopGraphDrag}
         onPointerCancel={stopGraphDrag}
         onWheel={handleGraphWheel}
-        aria-label="Interactive 3D math map. Drag empty space to rotate the map."
+        aria-label="Interactive 3D schemas. Drag empty space to rotate the schemas."
       >
         <div className="knowledge-graph__map-controls">
-          {showMapHint && <span className="knowledge-graph__map-hint">Drag map · Scroll to zoom</span>}
+          {showMapHint && <span className="knowledge-graph__map-hint">Drag schemas · Scroll to zoom</span>}
           <button type="button" onClick={() => zoomGraph(graphView.zoom - 0.12)} aria-label="Zoom out">
             -
           </button>
