@@ -64,7 +64,7 @@ Implement all five PRD lesson screens with interactive closet gameplay, unique o
   - Button: "Create Account & Enter 🔑"
 - [ ] Add toggle or secondary form for **returning users**: Username + Password + "Log In" button calling `signIn`
 - [ ] On successful signup: set `lesson.currentScreen` to `1` via `updateScreen(1)` and navigate
-- [ ] On successful login: load existing profile; route to `profile.lesson.currentScreen` (skip Screen 0)
+- [ ] On successful login: load existing profile; route to `profile.lessons[profile.activeLessonId].currentScreen` (skip Screen 0)
 - [ ] Basic validation: all fields non-empty; username min 3 chars; password min 6 chars; show inline error messages
 - [ ] Show error from AuthContext/service on duplicate username or auth failure
 
@@ -81,12 +81,12 @@ Implement all five PRD lesson screens with interactive closet gameplay, unique o
   - On Submit: compare answer to `CORRECT_ANSWERS.screen1` (6); set `lesson.screen1.answer` and `lesson.screen1.isCorrect`; persist to Firestore
   - Show `FeedbackBanner` with correct or incorrect message (personalized with princess name)
 - [ ] Add "Continue" button (visible after Submit) that calls `updateScreen(2)` regardless of correct/incorrect (per PRD: both paths lead to Screen 2)
-- [ ] Restore state on mount from `profile.lesson.screen1` (selections, discovered outfits, prior answer/feedback if already submitted)
+- [ ] Restore state on mount from `profile.lessons[profile.activeLessonId].screen1` (selections, discovered outfits, prior answer/feedback if already submitted)
 
 ### 6. Screen 2 — Anchor Trick Lesson (Step-by-Step)
 
 - [ ] Replace placeholder in `src/screens/AnchorTrickLesson.tsx`:
-  - Read `profile.lesson.screen2.currentStep` (default 1)
+  - Read `profile.lessons[profile.activeLessonId].screen2.currentStep` (default 1)
   - Render current step's `lessonText` from `screen2Steps` copy array
   - `PrincessCanvas` updated per step (bare figure step 1; locked crown step 2; cycling dresses step 3; second anchor step 4; summary step 5)
   - `showLock` prop true on steps 2–4 when anchor crown is active
@@ -97,7 +97,7 @@ Implement all five PRD lesson screens with interactive closet gameplay, unique o
   - "Next" button advances step (max 5); persist `screen2.currentStep` to Firestore on each advance
   - "Back" button decrements step (min 1); persist step change
   - Step 5: show button "Try the Princess Challenge! 🔥" → `updateScreen(3)`
-- [ ] Restore step on mount from `profile.lesson.screen2.currentStep`
+- [ ] Restore step on mount from `profile.lessons[profile.activeLessonId].screen2.currentStep`
 
 ### 7. Screen 3 — Shoes Challenge (Harder Exercise)
 
@@ -112,7 +112,7 @@ Implement all five PRD lesson screens with interactive closet gameplay, unique o
   - Persist `lesson.screen3.answer` and `lesson.screen3.isCorrect`
   - Show correct/incorrect `FeedbackBanner` (personalized)
 - [ ] "Continue" button after Submit → `updateScreen(4)` regardless of answer
-- [ ] Restore state from `profile.lesson.screen3` on mount
+- [ ] Restore state from `profile.lessons[profile.activeLessonId].screen3` on mount
 
 ### 8. Screen 4 — Final Summary & Review
 
@@ -124,13 +124,13 @@ Implement all five PRD lesson screens with interactive closet gameplay, unique o
   - Closing copy from `screen4Closing(princessName)`
 - [ ] Button: "Finish Lesson Complete! 🎉"
   - On click: call `updateLesson({ completed: true, currentScreen: 4 })` and persist
-  - Show completion state if `profile.lesson.completed === true` (disable button or show "Lesson Complete!" badge)
+  - Show completion state if `profile.lessons[profile.activeLessonId].completed === true` (disable button or show "Lesson Complete!" badge)
 
 ### 9. App Shell Integration
 
 - [ ] Remove dev-only screen-jump footer from `src/components/AppShell.tsx` (or gate behind `import.meta.env.DEV`)
 - [ ] Update screen router to render full screen components instead of placeholders
-- [ ] Unauthenticated users see only `PrincessRegistry`; authenticated users see screen matching `profile.lesson.currentScreen`
+- [ ] Unauthenticated users see only `PrincessRegistry`; authenticated users see screen matching `profile.lessons[profile.activeLessonId].currentScreen`
 - [ ] Prevent navigating to Screen 0 while authenticated unless signed out
 - [ ] Pass `profile`, `updateScreen`, `updateLesson`, and `princessName` props or via a `LessonContext` if prop drilling becomes excessive
 

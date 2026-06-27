@@ -125,6 +125,9 @@ export const LESSON_7_ID = 'lesson-7-to-be-updated'
 export const LESSON_8_ID = 'lesson-8-to-be-updated'
 export const LESSON_9_ID = 'lesson-9-to-be-updated'
 export const LESSON_10_ID = 'lesson-10-to-be-updated'
+export const LESSON_11_ID = 'lesson-11-to-be-updated'
+export const LESSON_12_ID = 'lesson-12-to-be-updated'
+export const LESSON_13_ID = 'lesson-13-to-be-updated'
 export const DEFAULT_LESSON_ID = LESSON_1_ID
 
 export function createDefaultLessonProgress(lessonId = DEFAULT_LESSON_ID): LessonProgress {

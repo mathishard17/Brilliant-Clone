@@ -20,6 +20,12 @@ function isValidNumeric(value: string): boolean {
   return Number.isFinite(num) && num >= 0
 }
 
+function normalizeNumericAnswer(value: string): string {
+  const trimmed = value.trim()
+  const num = Number(trimmed)
+  return Number.isFinite(num) ? String(num) : trimmed
+}
+
 export function ChallengeQuestion({
   prompt,
   value,
@@ -37,9 +43,11 @@ export function ChallengeQuestion({
   const [repeatState, setRepeatState] = useState<{ prompt: string; message: string } | null>(null)
   const inputDisabled = submitted && !allowRetry
   const canSubmit = !disabled && isValidNumeric(value) && (!submitted || allowRetry)
-  const normalizedValue = value.trim()
+  const normalizedValue = normalizeNumericAnswer(value)
   const localAttemptedAnswers = attemptState.prompt === prompt ? attemptState.answers : []
-  const attemptedAnswers = [...new Set([...savedAttemptedAnswers, ...localAttemptedAnswers])]
+  const attemptedAnswers = [
+    ...new Set([...savedAttemptedAnswers, ...localAttemptedAnswers].map(normalizeNumericAnswer)),
+  ]
   const repeatMessage = repeatState?.prompt === prompt ? repeatState.message : null
 
   function handleSubmit(event: FormEvent) {

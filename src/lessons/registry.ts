@@ -11,9 +11,13 @@ import {
   LESSON_8_ID,
   LESSON_9_ID,
   LESSON_10_ID,
+  LESSON_11_ID,
+  LESSON_12_ID,
+  LESSON_13_ID,
   type LessonProgress,
 } from '../types/lesson'
 import type { ScreenNumber } from '../types/user'
+import type { KnowledgeNodeId } from '../types/knowledgeGraph'
 import { resetLessonProgress } from '../utils/lessonProgress'
 import { getResumeScreen } from '../utils/lessonResume'
 
@@ -28,6 +32,7 @@ export interface LessonDefinition {
   title: string
   emoji: string
   description: string
+  graphNodeId: KnowledgeNodeId
   progressSteps: readonly string[]
   createDefaultProgress: () => LessonProgress
   getResumeScreen: (progress: LessonProgress) => ScreenNumber
@@ -116,6 +121,7 @@ function createComingSoonLesson(
   id: string,
   title: string,
   emoji: string,
+  graphNodeId: KnowledgeNodeId,
   description = 'To be updated',
 ): LessonDefinition {
   return {
@@ -123,6 +129,7 @@ function createComingSoonLesson(
     title,
     emoji,
     description,
+    graphNodeId,
     progressSteps: ['Preview'],
     createDefaultProgress: () => createDefaultLessonProgress(id),
     getResumeScreen: () => 1,
@@ -140,6 +147,7 @@ export const LESSON_DEFINITIONS: LessonDefinition[] = [
     title: 'Lesson 1: Princess Outfits',
     emoji: '👑',
     description: 'Count combinations with crowns, gowns, & shoes',
+    graphNodeId: 'counting_choices',
     progressSteps: ['Dress Up', 'The Trick', 'Add Shoes', 'Finish'],
     createDefaultProgress: () => createDefaultLessonProgress(LESSON_1_ID),
     getResumeScreen: (progress) => getResumeScreen(progress, 4),
@@ -156,6 +164,7 @@ export const LESSON_DEFINITIONS: LessonDefinition[] = [
     title: 'Lesson 2: Royal Arrangements',
     emoji: '💎',
     description: 'Arrange royal jewels and discover factorials',
+    graphNodeId: 'ordered_arrangements',
     progressSteps: ['Jewel Lineup', 'Factorials', 'No Ruby First', 'Matching Rubies', 'Order Matters'],
     createDefaultProgress: () => createDefaultLessonProgress(LESSON_2_ID),
     getResumeScreen: (progress) => getResumeScreen(progress, 5),
@@ -173,6 +182,7 @@ export const LESSON_DEFINITIONS: LessonDefinition[] = [
     title: 'Lesson 3: Royal Treasure Bags',
     emoji: '🎁',
     description: 'Choose royal treasures when order does not matter',
+    graphNodeId: 'groups_without_order',
     progressSteps: ['Treasure Bags', 'Same Bag', 'No Repeats', 'Bag Challenge', 'Order Check'],
     createDefaultProgress: () => createDefaultLessonProgress(LESSON_3_ID),
     getResumeScreen: (progress) => getResumeScreen(progress, 5),
@@ -190,6 +200,7 @@ export const LESSON_DEFINITIONS: LessonDefinition[] = [
     title: 'Lesson 4: Magic Chance Spinners',
     emoji: '⭐',
     description: 'Count winning spaces to discover chance',
+    graphNodeId: 'chance_as_fraction',
     progressSteps: ['Outcomes', 'Winning Spaces', 'More Likely', 'Impossible/Certain', 'Final Wheel'],
     createDefaultProgress: () => createDefaultLessonProgress(LESSON_4_ID),
     getResumeScreen: (progress) => getResumeScreen(progress, 5),
@@ -207,6 +218,7 @@ export const LESSON_DEFINITIONS: LessonDefinition[] = [
     title: 'Lesson 5: Fair Games',
     emoji: '🎪',
     description: 'List sample spaces and check fair carnival games',
+    graphNodeId: 'fairness_sample_space',
     progressSteps: ['Sample Space', 'Count Chances', 'Fair or Unfair', 'Fix the Game', 'Royal Review'],
     createDefaultProgress: () => createDefaultLessonProgress(LESSON_5_ID),
     getResumeScreen: (progress) => getResumeScreen(progress, 5),
@@ -219,11 +231,14 @@ export const LESSON_DEFINITIONS: LessonDefinition[] = [
       5: Lesson5RoyalReview,
     },
   },
-  createComingSoonLesson(LESSON_6_ID, 'Lesson 6: To Be Updated', '✨'),
-  createComingSoonLesson(LESSON_7_ID, 'Lesson 7: To Be Updated', '🌙'),
-  createComingSoonLesson(LESSON_8_ID, 'Lesson 8: To Be Updated', '🦄'),
-  createComingSoonLesson(LESSON_9_ID, 'Lesson 9: To Be Updated', '🏰'),
-  createComingSoonLesson(LESSON_10_ID, 'Lesson 10: To Be Updated', '🎇'),
+  createComingSoonLesson(LESSON_6_ID, 'Equal Groups & Arrays', '✨', 'equal_groups_arrays'),
+  createComingSoonLesson(LESSON_7_ID, 'Skip Counting Paths', '🌙', 'skip_counting'),
+  createComingSoonLesson(LESSON_8_ID, 'Base-10 Bundles', '🦄', 'base_10_bundling'),
+  createComingSoonLesson(LESSON_9_ID, 'Scale & Estimation', '🏰', 'magnitude_estimation'),
+  createComingSoonLesson(LESSON_10_ID, 'Transfer Missions', '🎇', 'transfer_missions'),
+  createComingSoonLesson(LESSON_11_ID, 'Sample Space Trees', '🌳', 'sample_space_trees'),
+  createComingSoonLesson(LESSON_12_ID, 'Compound Chance', '🔗', 'compound_chance'),
+  createComingSoonLesson(LESSON_13_ID, 'Experimental Probability', '🧪', 'experimental_probability'),
 ]
 
 export function getLessonDefinition(lessonId: string): LessonDefinition {

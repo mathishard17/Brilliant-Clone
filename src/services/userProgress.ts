@@ -9,12 +9,25 @@ import {
 import { db } from '../lib/firebase'
 import {
   DEFAULT_LESSON_ID,
+  LESSON_1_ID,
   createDefaultLessonProgress,
   type LessonProgress,
 } from '../types/lesson'
 import type { ScreenNumber, UserProfile, UsernameRecord } from '../types/user'
-import { normalizeLessonMap, normalizeLessonProgress } from '../utils/lessonProgress'
+import {
+  getProfileLessonProgress,
+  mergeLessonProgress,
+  normalizeLessonMap,
+  normalizeLessonProgress,
+} from '../utils/lessonProgress'
 import { normalizeUsername } from '../utils/outfitKeys'
+import {
+  DEFAULT_CHARACTER_APPEARANCE,
+  parseCharacterAppearance,
+} from '../data/characterAppearance'
+import { normalizeThemePreference } from '../themes/themeResolver'
+import { isValidLesson1ThemePack } from '../themes/themeValidation'
+import { createDefaultStudentMemory, parseStudentMemory } from '../utils/studentMemory'
 
 function usersRef(uid: string) {
   return doc(db, 'users', uid)
@@ -22,6 +35,35 @@ function usersRef(uid: string) {
 
 function usernamesRef(username: string) {
   return doc(db, 'usernames', normalizeUsername(username))
+}
+
+function stripUndefinedForFirestore(value: unknown): unknown {
+  if (value === undefined) return undefined
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => stripUndefinedForFirestore(entry) ?? null)
+  }
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  if (typeof value === 'object') {
+    if (Object.getPrototypeOf(value) !== Object.prototype) {
+      return value
+    }
+    const cleaned: Record<string, unknown> = {}
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      const cleanedEntry = stripUndefinedForFirestore(entry)
+      if (cleanedEntry !== undefined) cleaned[key] = cleanedEntry
+    }
+    return cleaned
+  }
+  return undefined
+}
+
+function cleanObjectForFirestore<T extends Record<string, unknown>>(value: T): T {
+  return stripUndefinedForFirestore(value) as T
 }
 
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
@@ -33,6 +75,7 @@ export async function createUserProfile(
   uid: string,
   username: string,
   princessName: string,
+  themePreference: UserProfile['themePreference'] = 'royal',
 ): Promise<void> {
   const normalized = normalizeUsername(username)
   const batch = writeBatch(db)
@@ -45,9 +88,14 @@ export async function createUserProfile(
     activeLessonId: DEFAULT_LESSON_ID,
     username: normalized,
     princessName: princessName.trim(),
+    themePreference,
+    customThemeIdea: '',
+    themePacks: {},
+    voiceEnabled: false,
+    appearance: DEFAULT_CHARACTER_APPEARANCE,
+    studentMemory: createDefaultStudentMemory(),
     createdAt: now,
     updatedAt: now,
-    lesson: createDefaultLessonProgress(DEFAULT_LESSON_ID),
     lessons: {
       [DEFAULT_LESSON_ID]: createDefaultLessonProgress(DEFAULT_LESSON_ID),
     },
@@ -66,23 +114,31 @@ export async function createUserProfile(
 }
 
 function parseUserProfile(data: Record<string, unknown>): UserProfile {
-  const legacyLesson = data.lesson as Partial<LessonProgress> | undefined
   const lessons = normalizeLessonMap(
     data.lessons as Record<string, Partial<LessonProgress>> | undefined,
-    legacyLesson,
   )
   const activeLessonId = String(data.activeLessonId ?? DEFAULT_LESSON_ID)
   const lesson = lessons[activeLessonId] ?? createDefaultLessonProgress(activeLessonId)
   lessons[activeLessonId] = lesson
+  const rawThemePacks = data.themePacks as UserProfile['themePacks'] | undefined
+  const themePacks: UserProfile['themePacks'] = {}
+  if (isValidLesson1ThemePack(rawThemePacks?.[LESSON_1_ID])) {
+    themePacks[LESSON_1_ID] = rawThemePacks[LESSON_1_ID]
+  }
 
   return {
     activeLessonId,
     username: String(data.username ?? ''),
     princessName: String(data.princessName ?? ''),
+    themePreference: normalizeThemePreference(data.themePreference),
+    customThemeIdea: typeof data.customThemeIdea === 'string' ? data.customThemeIdea : '',
+    themePacks,
+    voiceEnabled: data.voiceEnabled === true,
+    appearance: parseCharacterAppearance(data.appearance),
+    studentMemory: parseStudentMemory(data.studentMemory),
     createdAt: data.createdAt as UserProfile['createdAt'],
     updatedAt: data.updatedAt as UserProfile['updatedAt'],
     lessons,
-    lesson,
   }
 }
 
@@ -109,12 +165,12 @@ export async function getUserProfileFromServer(uid: string): Promise<UserProfile
 
 export async function updateUserProfile(
   uid: string,
-  partial: Partial<Omit<UserProfile, 'lesson'>>,
+  partial: Partial<UserProfile>,
 ): Promise<void> {
-  await updateDoc(usersRef(uid), {
+  await updateDoc(usersRef(uid), cleanObjectForFirestore({
     ...partial,
     updatedAt: serverTimestamp(),
-  })
+  }))
 }
 
 /** Persist the full lesson object to avoid partial overwrites wiping nested fields. */
@@ -124,12 +180,11 @@ export async function saveLessonProgress(
   lessonId = lesson.lessonId || DEFAULT_LESSON_ID,
 ): Promise<void> {
   const normalized = normalizeLessonProgress(lesson, lessonId)
-  await updateDoc(usersRef(uid), {
+  await updateDoc(usersRef(uid), cleanObjectForFirestore({
     activeLessonId: lessonId,
-    lesson: normalized,
     [`lessons.${lessonId}`]: normalized,
     updatedAt: serverTimestamp(),
-  })
+  }))
 }
 
 export async function updateLessonProgress(
@@ -138,13 +193,7 @@ export async function updateLessonProgress(
   currentLesson: LessonProgress,
   lessonId = currentLesson.lessonId || DEFAULT_LESSON_ID,
 ): Promise<void> {
-  const merged = normalizeLessonProgress({
-    ...currentLesson,
-    ...lesson,
-    screen1: lesson.screen1 ? { ...currentLesson.screen1, ...lesson.screen1 } : currentLesson.screen1,
-    screen2: lesson.screen2 ? { ...currentLesson.screen2, ...lesson.screen2 } : currentLesson.screen2,
-    screen3: lesson.screen3 ? { ...currentLesson.screen3, ...lesson.screen3 } : currentLesson.screen3,
-  }, lessonId)
+  const merged = mergeLessonProgress(currentLesson, { ...lesson, lessonId })
   await saveLessonProgress(uid, merged, lessonId)
 }
 
@@ -167,7 +216,8 @@ export async function hydrateProfileAfterLogin(
   uid: string,
   profile: UserProfile,
 ): Promise<UserProfile> {
-  let lesson = normalizeLessonProgress(profile.lesson)
+  const lessonId = profile.activeLessonId || DEFAULT_LESSON_ID
+  let lesson = normalizeLessonProgress(getProfileLessonProgress(profile, lessonId), lessonId)
   const wasInLesson = lesson.currentScreen >= 1
 
   if (wasInLesson) {
@@ -178,9 +228,16 @@ export async function hydrateProfileAfterLogin(
     }
   }
 
-  const hydrated = { ...profile, lesson }
+  const hydrated = {
+    ...profile,
+    activeLessonId: lessonId,
+    lessons: {
+      ...profile.lessons,
+      [lessonId]: lesson,
+    },
+  }
   if (wasInLesson) {
-    await saveLessonProgress(uid, lesson)
+    await saveLessonProgress(uid, lesson, lessonId)
   }
   return hydrated
 }

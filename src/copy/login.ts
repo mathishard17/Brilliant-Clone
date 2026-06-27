@@ -1,11 +1,7 @@
-export function loginHeading() {
-  return '🏰 Welcome to the Kingdom!'
-}
-
-export function loginBodySignup() {
-  return 'Create your secret princess keys to step into the castle dressing room!'
-}
-
-export function loginBodyLogin() {
-  return 'Enter your secret princess keys to step into the castle dressing room!'
-}
+export const loginCopy = {
+  heading: 'Welcome to Your Math Map',
+  body: {
+    login: 'Type your username and password to return to your glowing math map.',
+    signup: 'Create your account, pick a favorite adventure world, and start lighting up math topics.',
+  },
+} as const

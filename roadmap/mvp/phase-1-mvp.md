@@ -117,7 +117,7 @@ Establish the core architecture, Firebase integration, TypeScript data schema, a
   - Loading spinner while `AuthContext.loading === true`
   - Error banner when `AuthContext.error` is set
   - Header showing `profile.princessName` and a Sign Out button when authenticated
-  - Screen router: switch on `profile.lesson.currentScreen` (or `0` when unauthenticated) to render the correct placeholder screen
+  - Screen router: switch on `profile.lessons[profile.activeLessonId].currentScreen` (or `0` when unauthenticated) to render the correct placeholder screen
   - Dev-only footer with buttons to jump between screens 0–4 (for testing navigation + persistence)
 - [ ] Replace starter content in [src/App.tsx](../src/App.tsx) with `<AppShell />`
 - [ ] Remove unused Vite starter assets and CSS from `App.tsx` / `App.css` (keep `index.css` base styles)

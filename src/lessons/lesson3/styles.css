@@ -1,0 +1,96 @@
+.lesson-3 .treasure-bag,
+.lesson-3 .counting-shortcut,
+.lesson-3 .smaller-vault,
+.lesson-3 .same-bag-reveal__card,
+.lesson-3 .combination-sort__card {
+  background: var(--theme-panel-bg, #faf5ff);
+  border-color: var(--theme-border, var(--color-border));
+}
+
+.lesson-3 .treasure-bag__bag {
+  background:
+    radial-gradient(circle at 18% 18%, rgb(255 255 255 / 0.72), transparent 28%),
+    linear-gradient(180deg, var(--theme-stage-bg, #fef3c7), var(--theme-panel-bg, #fde68a));
+  border-color: var(--theme-accent, #d97706);
+}
+
+.lesson-3 .treasure-bag__slot {
+  background: var(--theme-button-bg, #fff);
+  border-color: var(--theme-button-border, var(--theme-border, #a16207));
+  color: var(--theme-button-text, var(--color-primary));
+}
+
+.lesson-3 .treasure-bag__slot--filled {
+  border-color: var(--lesson3-treasure-border, var(--theme-accent, #7c3aed));
+}
+
+.lesson-3 .treasure-bag__scaffold-note {
+  margin: 0.25rem 0 1rem;
+  color: var(--theme-hint-text, var(--color-text-muted));
+  font-weight: 700;
+}
+
+.lesson-3 .treasure-bag__choice,
+.lesson-3 .smaller-vault__treasure {
+  background: var(--lesson3-treasure-bg, var(--theme-button-bg, #fff));
+  color: var(--lesson3-treasure-text, var(--theme-button-text, var(--color-text)));
+  border-color: var(--lesson3-treasure-border, var(--theme-button-border, var(--color-border)));
+}
+
+.lesson-3 .treasure-bag__choice--selected {
+  opacity: 1;
+  color: var(--lesson3-treasure-text, var(--theme-button-text, var(--color-primary)));
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.68), rgb(255 255 255 / 0)),
+    var(--lesson3-treasure-bg, var(--theme-success-bg, #ecfdf5));
+  border-color: var(--theme-accent, var(--lesson3-treasure-border, var(--color-primary)));
+  box-shadow:
+    inset 0 0 0 3px var(--theme-accent, var(--lesson3-treasure-border, var(--color-primary))),
+    0 8px 16px rgb(15 23 42 / 0.12);
+  transform: translateY(-2px);
+}
+
+.lesson-3 .treasure-bag__choice--selected::after {
+  content: "Selected";
+  padding: 0.1rem 0.35rem;
+  color: var(--theme-success-text, #065f46);
+  background: var(--theme-success-bg, #ecfdf5);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.lesson-3 .treasure-bag__jewel {
+  background: radial-gradient(
+    circle at 30% 30%,
+    var(--lesson3-treasure-highlight, #fecaca) 0 18%,
+    var(--lesson3-treasure-fill, #ef4444) 19% 100%
+  );
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--lesson3-treasure-fill, #7c3aed) 30%, transparent);
+}
+
+.lesson-3 .same-bag-reveal__stamp,
+.lesson-3 .counting-shortcut__repeat-label {
+  color: var(--theme-success-text, #065f46);
+  background: var(--theme-success-bg, #ecfdf5);
+  border-color: var(--theme-accent, #34d399);
+}
+
+.lesson-3 .counting-shortcut__equation p {
+  background: var(--theme-hint-bg, #f0f9ff);
+  border-color: var(--theme-border, #bae6fd);
+  color: var(--theme-hint-text, var(--color-text));
+}
+
+.lesson-3 .combination-sort__choice {
+  color: var(--theme-button-text, var(--color-primary));
+  background: var(--theme-button-bg, #fff);
+  border-color: var(--theme-button-border, var(--color-border));
+}
+
+.lesson-3 .combination-sort__choice--selected {
+  color: var(--theme-button-bg, #fff);
+  background: var(--theme-accent, var(--color-primary));
+  border-color: var(--theme-accent, var(--color-primary));
+  box-shadow: 0 0 0 3px var(--theme-border, rgb(124 58 237 / 0.2));
+}

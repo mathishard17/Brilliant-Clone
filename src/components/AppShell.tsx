@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { User } from 'firebase/auth'
 import { useAuth } from '../hooks/useAuth'
 import { useUserProgress } from '../hooks/useUserProgress'
@@ -9,6 +9,12 @@ import { showDevNav } from '../utils/devMode'
 import { LoadingSpinner } from './LoadingSpinner'
 import { LessonProgressBar } from './LessonProgressBar'
 import { PrincessRegistry } from '../screens/PrincessRegistry'
+import { lesson1ThemeStyle, resolveLesson1Theme } from '../themes/themeResolver'
+import { getThemedLessonDisplay } from '../screens/homeHubDisplay'
+import { updateUserProfile } from '../services/userProgress'
+import { playButtonTapSound } from '../utils/uiSound'
+import { getKnowledgeNodeById } from '../types/knowledgeGraph'
+import { getProfileLessonProgress } from '../utils/lessonProgress'
 
 const HomeHub = lazy(() =>
   import('../screens/HomeHub').then((m) => ({ default: m.HomeHub })),
@@ -21,11 +27,14 @@ interface AuthenticatedAppProps {
 
 function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
   const { signOut, setProfile } = useAuth()
+  const [voiceSaving, setVoiceSaving] = useState(false)
 
   const {
     profile: localProfile,
     updateScreen,
     updateLesson,
+    updateAppearance,
+    recordStudentMemoryEvent,
     recordOutfitPair,
     recordOutfitTriple,
     saving,
@@ -37,9 +46,16 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
     onProfileChange: setProfile,
   })
 
-  const screen = localProfile.lesson.currentScreen as ScreenNumber
-  const princessName = localProfile.princessName
+  const activeLesson = getProfileLessonProgress(localProfile)
+  const screen = activeLesson.currentScreen as ScreenNumber
+  const princessName = localProfile.princessName.trim() || localProfile.username || 'Learner'
   const lessonDefinition = getLessonDefinition(localProfile.activeLessonId)
+  const activeTheme = resolveLesson1Theme(localProfile.themePreference, localProfile.themePacks)
+  const lessonDisplay = getThemedLessonDisplay(
+    lessonDefinition,
+    activeTheme,
+    localProfile.themePreference,
+  )
   const lessonScreens: ScreenNumber[] = Array.from(
     { length: lessonDefinition.progressSteps.length },
     (_, i) => i + 1,
@@ -54,12 +70,29 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
     return LessonScreen ? <LessonScreen princessName={princessName} /> : <HomeHub princessName={princessName} />
   }
 
+  async function handleVoiceToggle() {
+    if (voiceSaving) return
+    const previous = localProfile
+    const nextProfile = { ...localProfile, voiceEnabled: !localProfile.voiceEnabled }
+    setVoiceSaving(true)
+    setProfile(nextProfile)
+    try {
+      await updateUserProfile(user.uid, { voiceEnabled: nextProfile.voiceEnabled })
+    } catch {
+      setProfile(previous)
+    } finally {
+      setVoiceSaving(false)
+    }
+  }
+
   return (
     <LessonProvider
       value={{
         profile: localProfile,
         updateScreen,
         updateLesson,
+        updateAppearance,
+        recordStudentMemoryEvent,
         recordOutfitPair,
         recordOutfitTriple,
         saving,
@@ -76,7 +109,16 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
               Home
             </button>
           )}
-          <button type="button" onClick={() => signOut()}>
+          <button
+            type="button"
+            className={`app-header__voice-btn${localProfile.voiceEnabled ? ' app-header__voice-btn--on' : ''}`}
+            onClick={() => void handleVoiceToggle()}
+            aria-pressed={localProfile.voiceEnabled}
+            disabled={voiceSaving}
+          >
+            {voiceSaving ? 'Saving voice...' : localProfile.voiceEnabled ? 'Voice On' : 'Voice Off'}
+          </button>
+          <button type="button" onClick={() => void signOut()}>
             Sign Out
           </button>
         </div>
@@ -94,11 +136,11 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
       {lessonScreens.includes(screen) && (
         <div className="lesson-chrome">
           <p className="lesson-chrome__title">
-            <span aria-hidden="true">{lessonDefinition.emoji}</span> {lessonDefinition.title}
+            <span aria-hidden="true">{lessonDisplay.emoji}</span> {lessonDisplay.title}
           </p>
           <LessonProgressBar
             step={screen}
-            completed={localProfile.lesson.completed}
+            completed={activeLesson.completed}
             steps={lessonDefinition.progressSteps}
           />
         </div>
@@ -139,7 +181,7 @@ interface ProfileLoadErrorProps {
 
 function ProfileLoadError({ message, onRetry, onSignOut }: ProfileLoadErrorProps) {
   return (
-    <section className="screen-placeholder card" role="alert">
+    <section className="screen-placeholder registry card profile-load-error" role="alert">
       <h1 className="heading-display">Oops!</h1>
       <p>{message ?? "We couldn't load your progress. Please try again."}</p>
       <div className="app-header__actions">
@@ -158,12 +200,38 @@ export function AppShell() {
   const { user, profile, loading, sessionMessage, profileError, refreshProfile, signOut } =
     useAuth()
 
+  useEffect(() => {
+    function handleButtonClick(event: MouseEvent) {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const button = target.closest('button')
+      if (!button || button.disabled || button.getAttribute('aria-disabled') === 'true') return
+      playButtonTapSound(button)
+    }
+
+    document.addEventListener('click', handleButtonClick, { capture: true })
+    return () => document.removeEventListener('click', handleButtonClick, { capture: true })
+  }, [])
+
   if (loading) {
     return <LoadingSpinner />
   }
 
+  const activeTheme = profile ? resolveLesson1Theme(profile.themePreference, profile.themePacks) : null
+  const activeLessonDefinition = profile ? getLessonDefinition(profile.activeLessonId) : null
+  const activeLesson = profile ? getProfileLessonProgress(profile) : null
+  const activeKnowledgeNode = activeLessonDefinition
+    ? getKnowledgeNodeById(activeLessonDefinition.graphNodeId)
+    : null
+  const isSchemaBoardLesson =
+    activeLesson?.currentScreen !== 0 && activeKnowledgeNode?.schemaId === 'counting_probability'
+  const isRegistryScreen = !user || (user && !profile)
+
   return (
-    <div className="app-shell app-container">
+    <div
+      className={`app-shell app-container${activeTheme ? ' app-shell--themed' : ''}${activeLesson?.currentScreen === 0 ? ' app-shell--home' : ''}${isSchemaBoardLesson ? ' app-shell--schema-board' : ''}${isRegistryScreen ? ' app-shell--registry' : ''}`}
+      style={activeTheme ? lesson1ThemeStyle(activeTheme) : undefined}
+    >
       {sessionMessage && !user && (
         <p className="session-banner" role="status">
           {sessionMessage}

@@ -37,7 +37,6 @@ export function normalizeLessonProgress(
 
 export function normalizeLessonMap(
   lessons: Record<string, Partial<LessonProgress>> | undefined,
-  legacyLesson?: Partial<LessonProgress>,
 ): Record<string, LessonProgress> {
   const normalized: Record<string, LessonProgress> = {}
 
@@ -47,16 +46,21 @@ export function normalizeLessonMap(
     }
   }
 
-  if (legacyLesson) {
-    const normalizedLegacy = normalizeLessonProgress(legacyLesson)
-    normalized[normalizedLegacy.lessonId] = normalized[normalizedLegacy.lessonId] ?? normalizedLegacy
-  }
-
   if (!normalized[DEFAULT_LESSON_ID]) {
     normalized[DEFAULT_LESSON_ID] = createDefaultLessonProgress(DEFAULT_LESSON_ID)
   }
 
   return normalized
+}
+
+export function getProfileLessonProgress(
+  profile: {
+    activeLessonId?: string
+    lessons: Record<string, LessonProgress>
+  },
+  lessonId = profile.activeLessonId ?? DEFAULT_LESSON_ID,
+): LessonProgress {
+  return profile.lessons[lessonId] ?? createDefaultLessonProgress(lessonId)
 }
 
 /** Deep-merge a lesson update onto the latest saved lesson state. */
@@ -114,7 +118,7 @@ export function appendOutfitTriple(
   })
 }
 
-/** Reset Lesson 1 (Princess Outfits) to a fresh state while staying on the hub. */
+/** Reset a lesson to a fresh state while staying on the hub. */
 export function resetLessonProgress(lessonId = DEFAULT_LESSON_ID): Partial<LessonProgress> {
   const defaults = createDefaultLessonProgress(lessonId)
   return {
@@ -127,9 +131,4 @@ export function resetLessonProgress(lessonId = DEFAULT_LESSON_ID): Partial<Lesso
     screen2: defaults.screen2,
     screen3: defaults.screen3,
   }
-}
-
-/** Reset Lesson 1 (Princess Outfits) to a fresh state while staying on the hub. */
-export function resetLesson1Progress(): Partial<LessonProgress> {
-  return resetLessonProgress(DEFAULT_LESSON_ID)
 }

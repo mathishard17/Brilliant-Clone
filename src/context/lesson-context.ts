@@ -1,11 +1,15 @@
 import { createContext } from 'react'
 import type { LessonProgress, OutfitPair, OutfitTriple } from '../types/lesson'
 import type { ScreenNumber, UserProfile } from '../types/user'
+import type { CharacterAppearance } from '../data/characterAppearance'
+import type { StudentMemoryEvent } from '../utils/studentMemory'
 
 export interface LessonContextValue {
   profile: UserProfile
   updateScreen: (screen: ScreenNumber, lessonId?: string) => Promise<void>
   updateLesson: (partial: Partial<LessonProgress>, lessonId?: string) => Promise<void>
+  updateAppearance: (appearance: CharacterAppearance) => Promise<void>
+  recordStudentMemoryEvent: (event: StudentMemoryEvent) => Promise<void>
   recordOutfitPair: (outfit: OutfitPair) => void
   recordOutfitTriple: (outfit: OutfitTriple) => void
   saving: boolean
