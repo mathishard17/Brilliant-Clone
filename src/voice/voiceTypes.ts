@@ -1,23 +1,7 @@
 import type { ThemePreference } from '../themes/themeTypes'
 
-export type VoiceProviderName = 'cartesia'
 export type VoiceRevealPolicy = 'safeBeforeAnswer' | 'postCorrect' | 'solutionOnly'
-export type VoiceStyle = 'storyteller' | 'mission' | 'fieldGuide' | 'helper' | 'coach' | 'studio'
-export type VoicePace = 'calm' | 'medium' | 'bright'
-export type VoicePitch = 'low' | 'medium' | 'high'
-export type VoiceClipStatus = 'ready' | 'generating' | 'fallback'
-
-export interface ThemeVoiceProfile {
-  themePreference: ThemePreference
-  provider: VoiceProviderName
-  /**
-   * App-owned symbolic key. The server maps this to a real Cartesia voice ID.
-   */
-  voiceKey: string
-  style: VoiceStyle
-  pace: VoicePace
-  pitch?: VoicePitch
-}
+export type VoiceClipStatus = 'ready' | 'fallback'
 
 export interface LessonVoiceClip {
   lessonId: string
@@ -49,7 +33,6 @@ export interface VoiceClipResponse {
   audioUrl?: string
   caption: string
   scriptHash: string
-  cacheSource?: 'data-url' | 'firebase-storage' | 'firebase-storage-new'
   debugError?: string
 }
 

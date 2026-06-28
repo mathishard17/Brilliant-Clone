@@ -122,6 +122,7 @@ Concise milestone log for **Counting Adventures**.
 - Refined the new-direction Home Hub into a black neon schema board: the current Lessons 1-5 build one Counting + Probability schema, with schema-colored dots, glowing lines, hover/focus content, and schema brightness meters.
 - Added graph node Feedback for in-progress, completed, and mastered nodes only; Feedback opens from the node detail panel and regenerates automatically when the learner's progress/context cache key changes.
 - Migrated AI hint generation, AI theme generation, graph Feedback summaries, and Cartesia voice generation off Firebase Cloud Functions and onto Vercel-style API routes.
+- Removed the obsolete Firebase Functions source/deployment config; Firebase deploys now target Hosting plus Firestore rules/indexes while Vercel-style API routes own OpenAI and Cartesia calls.
 - Removed the original one-lesson profile compatibility field from app reads/writes. User progress now lives only in `users/{uid}.lessons[lessonId]`.
 - Fixed shared Firestore save payload cleanup so `undefined` values from optional memory/progress fields do not trigger the generic "Couldn't save your progress" banner.
 - Updated Coach Hint behavior: generated hints may include helpful non-answer numbers, but a second OpenAI safety check rejects direct answer reveals; hint UI resets when moving to a new problem and shows dev-only fallback reasons.
@@ -136,10 +137,12 @@ Concise milestone log for **Counting Adventures**.
 - Lessons 6–10 appear as coming-soon placeholders through Home Hub pagination.
 - Home Hub now includes a black neon knowledge graph for Lessons 1-10; Lessons 1-5 derive active/mastered states from existing progress and Lessons 6-10 remain locked coming-soon nodes.
 - Knowledge Graph node Feedback is present locally, gated to in-progress/completed/mastered nodes, and keyed by node, status, progress ratio, tried contexts, lesson title, and active theme.
-- Latest `npm run build` passes after the optional-visual-gating, Coach Hint safety, Firestore save, and Lesson 1 outfit wording updates.
+- OpenAI-personalized answer feedback is present across the main scored Lesson 1-5 challenge blocks; requests include the problem, learner answer, correct answer, concept, and local context, with fallback copy if the API is unavailable.
+- Home Hub Learning Notes now include an AI-written progress summary and a visible Recommended next message derived from the knowledge graph state.
+- Latest `npm run build` passes after the personalized feedback, AI Learning Notes, voice replay, and local API route updates.
 - Vite still reports the existing large chunk warning.
 - Live Firebase site may need redeploy to include recent curriculum and theme changes.
-- Voice work has Lesson 1-5 UI integration and a Cartesia-backed Vercel API route; stable default-theme narration MP3s cache globally in Firebase Storage, custom/generated-theme narration caches by user, and feedback clips regenerate without Storage caching. Production voice still needs deploy QA and selected production voice IDs.
+- Voice work has Lesson 1-5 UI integration and a Cartesia-backed Vercel API route; stable default-theme narration MP3s cache globally in Firebase Storage, custom/generated-theme narration caches by user, and feedback clips speak the displayed AI feedback text with a replay button instead of Storage caching. Production voice still needs deploy QA and selected production voice IDs.
 - Shared per-lesson theme-pack contracts for Lessons 2–5 remain future architecture work; today’s implementation uses bridge helpers plus shared theme-state tokens.
 
 ## Next
@@ -150,7 +153,9 @@ Concise milestone log for **Counting Adventures**.
 - Manually read through Lesson 1 in Royal and Space themes to verify color, copy, capitalization, and astronaut/outfit visuals.
 - Manually inspect Lesson 1 Dinosaur/Animal/Sports/Surprise character visuals for outfit quality, hat placement, pants/shirt layering, and selected-item color changes.
 - Manually test every theme picker option to verify colors, motifs, labels, hub cards, and Lesson 2-5 local theme copy/change as expected.
-- Manually smoke-test Voice Off/Voice On across Lessons 1–5, including captions, autoplay gating, fallback audio, and feedback cue timing.
+- Manually smoke-test Voice Off/Voice On across Lessons 1–5, including captions, autoplay gating, fallback audio, feedback text-before-voice ordering, and replay.
+- Manually smoke-test AI answer feedback on at least one wrong answer in each lesson and verify fallback copy remains usable when OpenAI is unavailable.
+- Manually smoke-test Learning Notes after a few attempts to verify the AI summary and Recommended next message update sensibly.
 - Decide whether to add dedicated `Lesson2ThemePack`, `Lesson3ThemePack`, `Lesson4ThemePack`, and `Lesson5ThemePack` contracts instead of deriving later lessons from the Lesson 1 theme pack.
 - Manually smoke-test the new Home Hub graph on phone and iPad widths with incomplete, in-progress, completed, and mastered lesson profiles.
 - Manually smoke-test Knowledge Graph Feedback opening, cached reuse, and automatic regeneration after progress changes.

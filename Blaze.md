@@ -11,7 +11,7 @@ The app previously called Firebase callable functions for optional AI features:
 - Knowledge-node summaries
 - Voice clips
 
-Those calls require a backend so API keys never ship to the browser.
+Those calls require a backend so API keys never ship to the browser. The repo no longer configures a Firebase Functions source in `firebase.json`; backend AI/provider calls live behind Vercel-style API routes.
 
 ## No-Blaze Option
 
@@ -24,7 +24,7 @@ This repo now includes a Vercel-style `/api` backend scaffold:
 - `/api/generate-knowledge-node-summary`
 - `/api/get-voice-clip`
 
-Set `OPENAI_API_KEY` in Vercel project environment variables to enable the OpenAI-backed endpoints. Set `CARTESIA_API` to enable generated voice audio.
+Set `OPENAI_API_KEY` in Vercel project environment variables to enable the OpenAI-backed endpoints. Set `CARTESIA_API` to enable generated voice audio. Optional Firebase Admin credentials let `/api/get-voice-clip` cache eligible generated MP3s in Firebase Storage.
 
 ## Cost
 
@@ -32,4 +32,4 @@ Vercel Hobby is generally free for small personal projects within platform limit
 
 ## Notes
 
-The voice endpoint now calls Cartesia from `/api/get-voice-clip` and returns MP3 audio as a data URL. It does not use Firebase Storage caching, so repeated uncached voice requests may call Cartesia again.
+The voice endpoint now calls Cartesia from `/api/get-voice-clip`. Without Firebase Admin credentials, it returns MP3 audio as a data URL; with Firebase Admin credentials and a Storage bucket, eligible narration clips can be cached in Firebase Storage.

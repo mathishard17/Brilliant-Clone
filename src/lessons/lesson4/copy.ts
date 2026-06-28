@@ -13,7 +13,7 @@ export interface SpinnerSpace {
   prize: PrizeKind
 }
 
-export interface PrizeDefinition {
+interface PrizeDefinition {
   prize: PrizeKind
   label: string
   icon: string
@@ -26,7 +26,6 @@ export interface ChoiceChallenge {
   options: readonly string[]
   feedback: {
     correct: string
-    incorrect: string
     tryAgain: string
     solution: string
   }
@@ -54,18 +53,14 @@ export interface Lesson4ThemeFlavor {
   learnerRole: string
   prizeDefinitions: Record<PrizeKind, PrizeDefinition>
   visual: {
-    screenBackground: string
     panelBackground: string
     borderColor: string
     accentColor: string
-    stageBackground: string
     buttonBackground: string
     buttonText: string
     buttonBorder: string
     hintBackground: string
     hintText: string
-    successBackground: string
-    successText: string
     spinnerColors: Record<PrizeKind, string>
   }
 }
@@ -128,18 +123,14 @@ export function getLesson4ThemeFlavor(
     settingName: activeTheme.themeName.trim() || 'Chance Lab',
     learnerRole: activeTheme.learnerRole.trim() || 'learner',
     visual: {
-      screenBackground: 'var(--theme-screen-bg, #020617)',
       panelBackground: 'var(--theme-panel-bg, rgb(15 23 42 / 0.78))',
       borderColor: 'var(--theme-border, rgb(148 163 184 / 0.24))',
       accentColor: 'var(--theme-accent, #22d3ee)',
-      stageBackground: 'var(--theme-stage-bg, rgb(2 6 23 / 0.9))',
       buttonBackground: 'var(--theme-neutral-bg, rgb(15 23 42 / 0.84))',
       buttonText: 'var(--theme-neutral-text, #e2e8f0)',
       buttonBorder: 'var(--theme-neutral-border, rgb(148 163 184 / 0.42))',
       hintBackground: 'var(--theme-hint-bg, rgb(8 47 73 / 0.48))',
       hintText: 'var(--theme-hint-text, #bae6fd)',
-      successBackground: 'var(--theme-success-bg, rgb(6 78 59 / 0.48))',
-      successText: 'var(--theme-success-text, #bbf7d0)',
       spinnerColors: {
         crown: visual?.motifPrimary ?? '#facc15',
         ruby: visual?.accentColor ?? '#fb7185',
@@ -198,7 +189,7 @@ export const screen1Visual: SpinnerVisual = {
   title: 'Chance Spinner',
   targetPrize: 'crown',
   helperText:
-    'Tap spaces to inspect them, or press Spin once to see one outcome. The question is answered by counting the spaces.',
+    'Tap spaces to inspect them, or press Spin once to see one outcome. Careful spinner exploring can add Endurance points.',
   spaces: [
     { id: 'crown-1', prize: 'crown' },
     { id: 'ruby-1', prize: 'ruby' },
@@ -213,14 +204,14 @@ const screen1Copy = {
     `Welcome, ${princessName}! When this spinner spins, the arrow lands on exactly one space. Each space is one possible **outcome**.`,
   challenge: {
     id: 'total-outcomes',
-    prompt: 'How many total outcomes are on this spinner?',
-    answer: '4',
-    options: ['2', '3', '4', '5'],
+    prompt:
+      'A friend wants Crown to win, so they only write **Crown** as the outcome. Which list correctly shows the spinner\'s total outcomes?',
+    answer: 'Crown, Ruby, Gown, Dragon',
+    options: ['Crown only', 'Crown and Ruby', 'Crown, Ruby, Gown, Dragon', '4 Crowns'],
     feedback: {
-      correct: 'Great counting! There are **4** spaces, so there are **4 total outcomes**.',
-      incorrect: 'Not quite. Count each space the arrow could land on, one space at a time.',
-      tryAgain: 'Try again! Count every space the arrow could land on.',
-      solution: 'There are **4 possible outcomes**: Crown, Ruby, Gown, and Dragon.',
+      correct: 'Great thinking! Total outcomes means **everything the arrow could land on**, not just the prize someone wants.',
+      tryAgain: 'Try again! Total outcomes include every spinner space the arrow could land on.',
+      solution: 'The total outcomes are **Crown, Ruby, Gown, and Dragon**.',
     },
   } satisfies ChoiceChallenge,
   keyLine: 'The **total outcomes** are all the things that could happen.',
@@ -268,8 +259,6 @@ const screen2MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
       options: ['1/6', '2/6', '4/6', '6/2'],
       feedback: {
         correct: 'Yes! There are **2 Ruby spaces** out of **6 total spaces**, so the chance is **2/6**.',
-        incorrect:
-          'Not quite. Put the Ruby-space count on top and the total-space count on bottom.',
         tryAgain: 'Try again! Put the winning Ruby spaces on top and all spinner spaces on bottom.',
         solution:
           'The target is Ruby. There are **2 Ruby spaces** and **6 total spaces**, so the chance is **2/6**.',
@@ -281,13 +270,13 @@ const screen2MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
 }
 
 export const screen2KeyLine =
-  'Probability is a counting fraction: **favorable outcomes over total outcomes**.'
+  'Chance is a counting fraction: **favorable outcomes over total outcomes**.'
 
 export const compareSpinnerVisual: SpinnerVisual = {
   id: 'more-likely-less-likely',
   title: 'Star and Dragon Spinner',
   targetPrize: 'star',
-  helperText: 'Tap Star, Crown, or Dragon spaces to compare how many winning spaces each prize has.',
+  helperText: 'Tap Star, Crown, or Dragon spaces to compare winning spaces. Careful comparing can add Endurance points.',
   spaces: [
     { id: 'star-1', prize: 'star' },
     { id: 'star-2', prize: 'star' },
@@ -310,8 +299,6 @@ const screen3Copy = {
     feedback: {
       correct:
         'Exactly! Star has **3 winning spaces out of 6**. Dragon has only **1 winning space out of 6**. **Star** is more likely.',
-      incorrect:
-        'Not quite. Compare only the Star spaces and Dragon spaces; the prize with more spaces is more likely.',
       tryAgain: 'Try again! Count how many spaces show each prize.',
       solution:
         '**Star** is more likely because Star has **3 spaces** and Dragon has **1 space**. That means Star has a chance of **3/6**, while Dragon has a chance of **1/6**.',
@@ -324,7 +311,6 @@ const screen3Copy = {
     options: ['1/6', '2/6', '3/6', '6/2'],
     feedback: {
       correct: 'Great work! There are **2 Crown spaces** out of **6 total spaces**, so the chance is **2/6**.',
-      incorrect: 'Not quite. Put the Crown-space count on top and the total-space count on bottom.',
       tryAgain: 'Count only the Crown spaces first, then count all the spaces.',
       solution: 'There are **2 Crown spaces** and **6 total spaces**, so the chance is **2/6**.',
     },
@@ -366,7 +352,7 @@ const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
       id: 'impossible-explanation',
       type: 'explanation',
       body:
-        'The target prize is **Dragon**. Look carefully for any Dragon spaces before you answer.\n\nIf there are no winning spaces, the chance has 0 on top. That means impossible on this spinner.',
+        'The target prize is **Dragon**. Look carefully for any Dragon spaces before you answer.\n\nAsk: how many spaces would make Dragon win, and how many spaces could happen at all?',
     },
     {
       id: 'dragon-impossible',
@@ -377,8 +363,6 @@ const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
       feedback: {
         correct:
           'Correct! There are **0 Dragon spaces** out of **5 total spaces**, so Dragon is impossible here.',
-        incorrect:
-          'Not quite. First check whether any Dragon spaces appear, then put that count over the total spaces.',
         tryAgain: 'Try again! How many Dragon spaces do you see?',
         solution:
           'There are no Dragon spaces. That means **0 favorable outcomes** out of **5 total outcomes**, or **0/5**.',
@@ -390,7 +374,7 @@ const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
       id: 'certain-explanation',
       type: 'explanation',
       body:
-        'Now the target prize is **Sparkle**. Check whether every space matches the target.\n\nIf every possible outcome wins, the winning count and total count are the same. That means certain.',
+        'Now the target prize is **Sparkle**. Check whether every space matches the target.\n\nAsk: do any possible outcomes miss the target, or does every landing space win?',
     },
     {
       id: 'sparkle-certain',
@@ -400,8 +384,6 @@ const screen4MiniLesson: ClickthroughMiniLesson<Lesson4MiniLessonPage> = {
       options: ['0/4', '1/4', '3/4', '4/4'],
       feedback: {
         correct: 'Perfect! All **4 spaces** are Sparkle, so Sparkle is certain: **4/4**.',
-        incorrect:
-          'Not quite. Count Sparkle spaces for the top number, then count every space for the bottom number.',
         tryAgain: 'Try again! Count the Sparkle spaces, then count all spaces.',
         solution: 'There are **4 Sparkle spaces** out of **4 total spaces**, so the chance is **4/4**.',
       },
@@ -439,7 +421,6 @@ const screen5Copy = {
     options: ['1/8', '2/8', '3/8', '8/3'],
     feedback: {
       correct: 'Nice work! There are **3 Crown spaces** out of **8 total spaces**, so the chance is **3/8**.',
-      incorrect: 'Not quite. Count Crown spaces first, then put that count over all spaces on the wheel.',
       tryAgain: 'Try again! Count the Crown spaces first, then count every space on the wheel.',
       solution: 'There are **3 favorable Crown spaces** and **8 total spaces**. The chance is **3/8**.',
     },
@@ -451,8 +432,6 @@ const screen5Copy = {
     options: ['Ruby', 'Dragon', 'Same chance'],
     feedback: {
       correct: 'Yes! Ruby has **2 spaces out of 8**, while Dragon has **1 space out of 8**. **Ruby** is more likely.',
-      incorrect:
-        'Not quite. Compare Ruby spaces with Dragon spaces; the prize with more spaces is more likely.',
       tryAgain: 'Try again! Count Ruby spaces and Dragon spaces separately.',
       solution:
         'Ruby has **2 favorable spaces**. Dragon has **1 favorable space**. Since **2/8** is more than **1/8**, **Ruby** is more likely.',

@@ -7,6 +7,7 @@ import { FeedbackBanner } from '../../components/FeedbackBanner'
 import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
+import { RetrievalPracticeSet } from '../../components/RetrievalPracticeSet'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import { useLesson } from '../../hooks/useLesson'
@@ -15,6 +16,7 @@ import { lesson1ThemeStyle, resolveLesson1Theme } from '../../themes/themeResolv
 import { LESSON_3_ID, type ChallengeMiniLessonPage } from '../../types/lesson'
 import { playCompletionTada } from '../../utils/completionSound'
 import { getProfileLessonProgress } from '../../utils/lessonProgress'
+import { canRevealSolution } from '../../utils/solutionReveal'
 import {
   getLesson3ContainerLabel,
   getLesson3PairLabel,
@@ -67,6 +69,8 @@ interface Lesson3CountingShortcutState {
 interface Lesson3FinalSortState {
   [key: string]: unknown
   answers: Record<string, Lesson3SortAnswer>
+  retrievalPracticeSolved?: boolean
+  showPracticePage?: boolean
 }
 
 interface Lesson3TreasureVisual {
@@ -305,14 +309,6 @@ const LESSON_3_TREASURE_VISUALS: Record<ThemePreference, Lesson3TreasureVisuals>
   },
 }
 
-const TREASURE_STYLES: Record<Lesson3TreasureId, string> = {
-  ruby: 'treasure-bag__jewel--ruby',
-  sapphire: 'treasure-bag__jewel--sapphire',
-  emerald: 'treasure-bag__jewel--emerald',
-  pearl: 'treasure-bag__jewel--pearl',
-  amethyst: 'treasure-bag__jewel--amethyst',
-}
-
 const ORDERED_PICK_EXAMPLES: { first: Lesson3TreasureId; second: Lesson3TreasureId }[] = [
   { first: 'ruby', second: 'sapphire' },
   { first: 'sapphire', second: 'ruby' },
@@ -320,6 +316,24 @@ const ORDERED_PICK_EXAMPLES: { first: Lesson3TreasureId; second: Lesson3Treasure
   { first: 'emerald', second: 'ruby' },
   { first: 'sapphire', second: 'emerald' },
   { first: 'emerald', second: 'sapphire' },
+]
+
+const LESSON_3_RETRIEVAL_PRACTICE_PROBLEMS = [
+  {
+    id: 'lesson-3-lesson-2-order-reminder',
+    prompt: 'Order reminder: how many ways can **4 different treasures** line up in 4 spots?',
+    answer: 24,
+    correctFeedback: 'Yes: when order matters, 4 different treasures can make **24** lineups.',
+    tryAgainFeedback: 'Use the spot-by-spot pattern: 4 choices, then 3, then 2, then 1.',
+  },
+  {
+    id: 'lesson-3-current-groups-without-order',
+    prompt:
+      'Group check: from **3 treasures**, how many different 2-treasure bags can you make if order does not matter?',
+    answer: 3,
+    correctFeedback: 'Right: the 2-treasure groups are **3** different bags: AB, AC, and BC.',
+    tryAgainFeedback: 'List the pairs, then remember that swapping the same two treasures does not make a new bag.',
+  },
 ]
 
 const TREASURE_ORDER = new Map(
@@ -392,7 +406,7 @@ function TreasureJewel({
 }) {
   return (
     <span
-      className={`treasure-bag__jewel ${TREASURE_STYLES[treasureId]}${small ? ' treasure-bag__jewel--small' : ''}`}
+      className={`treasure-bag__jewel${small ? ' treasure-bag__jewel--small' : ''}`}
       style={treasureStyles[treasureId]}
       aria-label={getLesson3TreasureAriaLabel(themeCopy, treasureId)}
     />
@@ -451,6 +465,18 @@ function ChallengeBlock({
   const { attemptedAnswers, submitted, isCorrect, wrongAttempts } = state
   const [answerInput, setAnswerInput] = useState(state.answerInput)
   const [repeatAnswer, setRepeatAnswer] = useState('')
+  const submittedAnswer = attemptedAnswers[attemptedAnswers.length - 1] ?? answerInput
+  const conceptKey = `lesson-3-${page.id}`
+  const canShowSolution = canRevealSolution({
+    memory: profile.studentMemory,
+    conceptKey,
+    wrongAttempts,
+  })
+  const feedbackSubmissionKey = [
+    attemptedAnswers.join(','),
+    wrongAttempts,
+    String(isCorrect),
+  ].join('|')
 
   function handleSubmit() {
     const normalizedAnswer = answerInput.trim()
@@ -476,7 +502,7 @@ function ChallengeBlock({
     void recordStudentMemoryEvent({
       type: 'challengeAttempt',
       lessonId: LESSON_3_ID,
-      conceptKey: `lesson-3-${page.id}`,
+      conceptKey,
       label: 'Groups without order',
       outcome: correct ? 'correct' : 'incorrect',
       learnerAnswer: normalizedAnswer,
@@ -503,7 +529,7 @@ function ChallengeBlock({
       />
       <HintButton
         lessonId={LESSON_3_ID}
-        conceptKey={`lesson-3-${page.id}`}
+        conceptKey={conceptKey}
         conceptLabel="Groups without order"
         prompt={page.prompt}
         context={page.body ?? 'The learner is counting groups where order does not make a new group.'}
@@ -523,6 +549,17 @@ function ChallengeBlock({
       {submitted && isCorrect !== null && (
         <FeedbackBanner
           variant={isCorrect ? 'success' : 'error'}
+          submissionKey={feedbackSubmissionKey}
+          aiFeedback={{
+            lessonId: LESSON_3_ID,
+            conceptKey,
+            conceptLabel: 'Groups without order',
+            problem: page.prompt,
+            learnerAnswer: submittedAnswer,
+            correctAnswer: String(page.answer),
+            attemptedAnswers,
+            context: page.body ?? 'The learner is counting groups where order does not make a new group.',
+          }}
           voiceCue={{
             correctClipKey: 'lesson3.feedback.correct',
             enabled: profile.voiceEnabled,
@@ -538,9 +575,10 @@ function ChallengeBlock({
                 ? page.feedback?.incorrect ?? ''
                 : page.feedback?.tryAgain ?? page.feedback?.incorrect ?? ''
           }
+          solution={isCorrect ? page.feedback?.solution : undefined}
         />
       )}
-      {isCorrect === false && wrongAttempts >= 3 && page.feedback?.solution && (
+      {isCorrect === false && canShowSolution && page.feedback?.solution && (
         <FeedbackBanner variant="info" message={page.feedback.solution} />
       )}
     </div>
@@ -598,6 +636,7 @@ function TreasureBagPicker({
     const duplicate = foundBags.some((bag) => bag.key === key)
 
     if (duplicate) {
+      setSelectedTreasures([])
       updateStatus(
         'error',
         themeCopy.duplicateStatus(
@@ -621,6 +660,9 @@ function TreasureBagPicker({
 
   return (
     <div className="treasure-bag" aria-label={`${themeCopy.containerPlural} picker`}>
+      <p className="endurance-tip">
+        Endurance boost: keep trying new two-item bags. Each new bag you discover can add Endurance points.
+      </p>
       <div className="treasure-bag__stage">
         <div className="treasure-bag__bag" aria-label={themeCopy.currentContainerAriaLabel}>
           {[0, 1].map((slotIndex) => {
@@ -1084,6 +1126,8 @@ export function Lesson3FinalSort({ princessName }: Lesson3SectionProps) {
   const answers = finalSortState.answers
   const allCardsCorrect = sortCards.every((card) => answers[card.id] === card.correctAnswer)
   const allCorrect = activeLesson.completed || allCardsCorrect
+  const showPracticePage = finalSortState.showPracticePage === true
+  const retrievalPracticeSolved = finalSortState.retrievalPracticeSolved === true
 
   function setCardAnswer(cardId: string, answer: Lesson3SortAnswer) {
     setFinalSortState({ answers: { ...answers, [cardId]: answer } })
@@ -1113,30 +1157,65 @@ export function Lesson3FinalSort({ princessName }: Lesson3SectionProps) {
 
   return (
     <section className="lesson-screen lesson-screen--themed lesson-3" style={lessonStyle}>
-      <ScreenBackButton label="← Back" onClick={() => void updateScreen(4)} />
-      <h1>{themeCopy.finalHeading}</h1>
-      <LessonText text={themeCopy.finalIntro} />
-      <div className="combination-sort" aria-label="Sort stories by whether order matters">
-        {sortCards.map((card) => (
-          <SortCard
-            key={card.id}
-            card={card}
-            selectedAnswer={answers[card.id]}
-            onSelect={(answer) => setCardAnswer(card.id, answer)}
-          />
-        ))}
-      </div>
-      {allCorrect && (
-        <FeedbackBanner
-          variant="success"
-          message={lesson3CompletionMessage(princessName, themeCopy)}
-        />
-      )}
-      <LessonButton
-        label={activeLesson.completed ? 'Return to Academy' : 'Finish Lesson'}
-        onClick={handleFinish}
-        disabled={!allCorrect || isFinishing}
+      <ScreenBackButton
+        label={showPracticePage ? '← Back to Sort' : '← Back'}
+        onClick={() => {
+          if (showPracticePage) {
+            setFinalSortState({ showPracticePage: false })
+          } else {
+            void updateScreen(4)
+          }
+        }}
       />
+      <h1>{showPracticePage ? 'Practice' : themeCopy.finalHeading}</h1>
+      {showPracticePage ? (
+        <>
+          <LessonText text="Solve both practice problems to unlock the finish button." />
+          <RetrievalPracticeSet
+            initiallySolved={retrievalPracticeSolved}
+            onSolvedChange={(solved) => {
+              if (solved && !retrievalPracticeSolved) {
+                setFinalSortState({ retrievalPracticeSolved: true })
+              }
+            }}
+            problems={LESSON_3_RETRIEVAL_PRACTICE_PROBLEMS}
+          />
+          <LessonButton
+            label={activeLesson.completed ? 'Return to Academy' : 'Finish Lesson'}
+            onClick={handleFinish}
+            disabled={!retrievalPracticeSolved || isFinishing}
+          />
+        </>
+      ) : (
+        <>
+          <LessonText text={themeCopy.finalIntro} />
+          <div className="combination-sort" aria-label="Sort stories by whether order matters">
+            {sortCards.map((card) => (
+              <SortCard
+                key={card.id}
+                card={card}
+                selectedAnswer={answers[card.id]}
+                onSelect={(answer) => setCardAnswer(card.id, answer)}
+              />
+            ))}
+          </div>
+          {allCorrect && (
+            <FeedbackBanner
+              variant="success"
+              message={lesson3CompletionMessage(princessName, themeCopy)}
+            />
+          )}
+          <LessonButton
+            label={activeLesson.completed && retrievalPracticeSolved ? 'Return to Academy' : 'Practice'}
+            onClick={
+              activeLesson.completed && retrievalPracticeSolved
+                ? handleFinish
+                : () => setFinalSortState({ showPracticePage: true })
+            }
+            disabled={!allCorrect || isFinishing}
+          />
+        </>
+      )}
     </section>
   )
 }

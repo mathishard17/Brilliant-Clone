@@ -19,7 +19,6 @@ export interface HintRequest {
 
 interface HintResponse {
   hint: string
-  misconception?: string
   source: 'generated' | 'fallback'
   debugError?: string
 }
@@ -55,7 +54,6 @@ export async function generateSafeHint(request: HintRequest): Promise<HintRespon
     if (!validationIssue) {
       return {
         hint: result.hint.trim(),
-        misconception: result.misconception,
         source: result.source,
         debugError: result.debugError,
       }

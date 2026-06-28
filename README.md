@@ -31,16 +31,17 @@ count choices → order objects → choose groups → count chance → check fai
 - Node Feedback is available only for in-progress, completed, and mastered graph nodes, and refreshes automatically when the learner's progress state changes.
 - Interactive visuals: closets, jewel slots, treasure bags, spinners, sorting cards.
 - Visual experiments are scaffolds, not hard blockers: a correct answer can unlock progress without requiring every outfit, ordering, bag, or outcome to be built first.
-- Two-stage wrong-answer feedback and duplicate-answer blocking.
+- Two-stage wrong-answer feedback, duplicate-answer blocking, and OpenAI-personalized answer feedback using the problem, learner answer, and correct answer.
 - Lesson 1 can render from validated theme packs, with manual fallbacks for every theme preference.
 - Vercel API theme generation can create, validate, cache, and safely fall back for Lesson 1 themes.
 - Optional Coach Hint buttons use safe AI JSON validation, a second-pass server safety check for generated hints, and local fallback hints.
+- Home Hub Learning Notes include an AI-written progress summary plus a local Recommended next message from the knowledge graph state.
 - Royal and Space themes now carry distinct colors, character visuals, and bounded copy slots.
 - Theme packs include button, feedback, and motif-shape tokens, with manual fallbacks for all signup theme options.
 - Lesson 1 character visuals use bounded theme character configs, so non-royal themes can render structured outfits like explorer jackets, helper outfits, jerseys, and smocks instead of only recoloring the original dress shape.
 - Lessons 2–5 have lesson-local theme bridges while shared per-lesson theme-pack contracts are still a future step.
 - Theme visuals now include broader UI state tokens for error, status, selected, disabled, input/focus, spinner, meter, diagram, and neutral surfaces.
-- Optional opt-in voice narration uses a Vercel API route as the server boundary for Cartesia-generated MP3s, with captions and fallback responses.
+- Optional opt-in voice narration uses a Vercel API route as the server boundary for Cartesia-generated MP3s, with captions, fallback responses, and feedback replay.
 - Lightweight local UI sounds play on enabled buttons, with a separate completion tada for final lesson finish actions.
 - Mobile-first layout for phones, iPads, and desktop.
 - Project skills for curriculum work:
@@ -82,6 +83,7 @@ Important patterns:
 - Keep AI personalization constrained: AI can change labels/flavor, but code owns counts, answers, section order, and validation.
 - Keep visual experiments optional unless the task is explicitly to build the answer itself.
 - Keep graph Feedback progress-aware: cached summaries are keyed by node, status, progress, tried contexts, lesson title, and theme.
+- Keep answer feedback synchronized: text feedback is generated before feedback voice, and the voice route speaks the same text shown in the banner.
 - Keep API keys server-side: the browser calls Vercel-style `/api` routes, and those routes call OpenAI or Cartesia.
 - Use theme CSS variables for UI state surfaces, not just main panels and buttons.
 - Use `review-lesson` before demos to catch answer leakage, weak gating, static visuals, and plan drift.
@@ -117,14 +119,17 @@ Required Firebase values live in `.env` as `VITE_FIREBASE_*`. Optional:
 - `OPENAI_THEME_MODEL`
 - `OPENAI_HINT_MODEL`
 - `OPENAI_NODE_SUMMARY_MODEL`
+- `OPENAI_VOICE_MODEL`
+- `OPENAI_FEEDBACK_MODEL`
+- `OPENAI_LEARNING_NOTES_MODEL`
 - `CARTESIA_API`
 - `CARTESIA_MODEL_ID`
 - `CARTESIA_VERSION`
 - `CARTESIA_DEFAULT_VOICE_ID`
 - `FIREBASE_STORAGE_BUCKET`
-- `FIREBASE_SERVICE_ACCOUNT_KEY` or `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`
+- `FIREBASE_SERVICE_ACCOUNT_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, or `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`
 
-OpenAI-backed hints, graph Feedback summaries, generated theme packs, and Cartesia voice clips run through Vercel-style API routes in `api/`. Coach Hint uses a second OpenAI safety pass so generated hints can include helpful numbers without directly revealing final answers. Manual fallback themes, fallback hints, local progress-based Feedback, and voice captions work without server API keys.
+OpenAI-backed hints, answer feedback, Learning Notes, graph Feedback summaries, generated theme packs, and Cartesia voice clips run through Vercel-style API routes in `api/`. Coach Hint uses a second OpenAI safety pass so generated hints can include helpful numbers without directly revealing final answers. Manual fallback themes, fallback hints, local progress-based Feedback, and voice captions work without server API keys.
 
 For local API testing with Vite, `npm run dev` serves the same `/api` routes through local middleware. You can also run a Vercel dev server:
 
@@ -132,7 +137,7 @@ For local API testing with Vite, `npm run dev` serves the same `/api` routes thr
 npx vercel dev
 ```
 
-Voice audio uses `CARTESIA_API`. When the server-only Firebase Admin env vars above are configured, `/api/get-voice-clip` caches stable default-theme narration/direction MP3s globally in Firebase Storage and caches custom/generated-theme narration under the signed-in user. Correct/try-again feedback clips are intentionally not cached so they can regenerate with fresh AI wording. Without Firebase Admin credentials, voice still works by returning MP3 data URLs directly.
+Voice audio uses `CARTESIA_API`. When the server-only Firebase Admin env vars above are configured, `/api/get-voice-clip` caches stable default-theme narration/direction MP3s globally in Firebase Storage and caches custom/generated-theme narration under the signed-in user. Correct/try-again feedback clips are intentionally not cached; their text is generated first by answer feedback and then spoken by Cartesia. Without Firebase Admin credentials, voice still works by returning MP3 data URLs directly.
 
 ## Scripts
 
@@ -142,15 +147,15 @@ Voice audio uses `CARTESIA_API`. When the server-only Firebase Admin env vars ab
 | `npm run build` | Type-check and production build |
 | `npm run lint` | Run ESLint |
 | `npm run preview` | Preview production build |
-| `npm run firebase:deploy` | Build + deploy Hosting and Firestore rules |
+| `npm run firebase:deploy` | Build + deploy Hosting and Firestore rules/indexes |
 | `npm run firebase:deploy:hosting` | Build + deploy Hosting only |
 
 ## Status Notes
 
-- Latest local build passes after the optional-visual-gating and Coach Hint safety updates.
+- Latest local build passes after the personalized answer feedback, AI Learning Notes, Recommended next, and feedback voice replay updates.
 - Vite still reports a large chunk warning.
-- AI-added roadmap status: Lesson 1 manual themes/character presets, hub/login theming, shared theme-state tokens, Lessons 2-5 local theme bridges, and Vercel API routes for OpenAI-backed features are present. Manual theme validation and hint/visual smoke testing are still needed before demo/deploy.
-- Voice status: opt-in voice UI, shared clip catalogs, Cartesia `/api/get-voice-clip`, captions, and local fallback behavior are present for Lessons 1-5. Production voice still needs deploy QA and final voice IDs.
+- AI-added roadmap status: Lesson 1 manual themes/character presets, hub/login theming, shared theme-state tokens, Lessons 2-5 local theme bridges, personalized answer feedback, AI Learning Notes, and Vercel API routes for OpenAI-backed features are present. Manual theme validation and hint/visual smoke testing are still needed before demo/deploy.
+- Voice status: opt-in voice UI, shared clip catalogs, Cartesia `/api/get-voice-clip`, captions, feedback replay, and local fallback behavior are present for Lessons 1-5. Production voice still needs deploy QA and final voice IDs.
 - Knowledge Graph status: graph navigation, status-derived nodes, reset/open actions, and progress-aware node Feedback are present locally; browser smoke testing and redeploy are still needed.
 - The live demo may lag local changes until redeployed.
 

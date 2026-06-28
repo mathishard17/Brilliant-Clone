@@ -7,6 +7,7 @@ import { VoiceButton } from '../components/VoiceButton'
 import { ChallengeQuestion } from '../components/ChallengeQuestion'
 import { FeedbackBanner } from '../components/FeedbackBanner'
 import { HintButton } from '../components/HintButton'
+import { RetrievalPracticeSet, type RetrievalPracticeProblem } from '../components/RetrievalPracticeSet'
 import {
   screen4MiniLesson,
   type Screen4MiniLessonPage,
@@ -16,6 +17,7 @@ import { useLesson } from '../hooks/useLesson'
 import { LESSON_1_ID } from '../types/lesson'
 import { showDevNav } from '../utils/devMode'
 import { getProfileLessonProgress } from '../utils/lessonProgress'
+import { canRevealSolution } from '../utils/solutionReveal'
 import {
   getLesson1ThemeCopy,
   getThemeCategory,
@@ -37,6 +39,7 @@ interface LessonSummaryState {
   practiceAnswer: string
   practiceSubmitted: boolean
   practiceCorrect: boolean | null
+  retrievalPracticeSolved: boolean
   practiceWrongAttempts: number
   practiceAttemptedAnswers: string[]
 }
@@ -47,9 +50,27 @@ const SUMMARY_DEFAULT_STATE: LessonSummaryState = {
   practiceAnswer: '',
   practiceSubmitted: false,
   practiceCorrect: null,
+  retrievalPracticeSolved: false,
   practiceWrongAttempts: 0,
   practiceAttemptedAnswers: [],
 }
+const LESSON_1_RETRIEVAL_PROBLEMS: RetrievalPracticeProblem[] = [
+  {
+    id: 'lesson-1-counting-choices',
+    prompt: 'A quick choice check: if there are **5 crowns** and **3 gowns**, how many outfits can you make?',
+    answer: 15,
+    correctFeedback: 'Yes: 5 choices times 3 choices makes **15** outfits.',
+    tryAgainFeedback: 'Try multiplying the choices: crowns times gowns.',
+  },
+  {
+    id: 'lesson-1-equal-groups-bridge',
+    prompt: 'Related idea: there are **5 rows** with **4 stars** in each row. How many stars are there?',
+    answer: 20,
+    correctFeedback: 'Right: 5 groups of 4 makes **20** stars.',
+    tryAgainFeedback: 'Think of 5 equal groups, with 4 in each group.',
+  },
+]
+const LESSON_1_RETRIEVAL_PAGE_ID = 'lesson-1-retrieval-practice'
 
 export function LessonSummary({ princessName }: LessonSummaryProps) {
   const { profile, recordStudentMemoryEvent, updateLesson, updateScreen } = useLesson()
@@ -59,7 +80,21 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
   const crownsLabel = getThemeCategory(theme, 'crowns')?.label ?? 'top choices'
   const dressesLabel = getThemeCategory(theme, 'dresses')?.label ?? 'middle choices'
   const shoesLabel = getThemeCategory(theme, 'shoes')?.label ?? 'third choices'
-  const miniLesson = useMemo(() => screen4MiniLesson(princessName), [princessName])
+  const miniLesson = useMemo(() => {
+    const lesson = screen4MiniLesson(princessName)
+    return {
+      ...lesson,
+      pages: [
+        ...lesson.pages,
+        {
+          id: LESSON_1_RETRIEVAL_PAGE_ID,
+          type: 'explanation' as const,
+          body: '',
+          nextLabel: 'Finish Lesson Complete! 🎉',
+        },
+      ],
+    }
+  }, [princessName])
   const savedSummaryState = activeLesson.sectionState[SUMMARY_SECTION_ID] as
     | Partial<LessonSummaryState>
     | undefined
@@ -69,6 +104,7 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
     pageIndex,
     practiceSubmitted,
     practiceCorrect,
+    retrievalPracticeSolved,
     practiceWrongAttempts,
     practiceAttemptedAnswers,
   } = summaryState
@@ -181,6 +217,19 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
     }
   }
 
+  const submittedPracticeAnswer =
+    practiceAttemptedAnswers[practiceAttemptedAnswers.length - 1] ?? practiceAnswer
+  const practiceFeedbackSubmissionKey = [
+    practiceAttemptedAnswers.join(','),
+    practiceWrongAttempts,
+    String(practiceCorrect),
+  ].join('|')
+  const canShowPracticeSolution = canRevealSolution({
+    memory: profile.studentMemory,
+    conceptKey: 'multiplication-shortcut',
+    wrongAttempts: practiceWrongAttempts,
+  })
+
   return (
     <section className="lesson-screen lesson-screen--themed lesson-summary" style={lesson1ThemeStyle(theme)}>
       <ScreenBackButton
@@ -216,7 +265,10 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
         completeLabel="Finish Lesson Complete! 🎉"
         navClassName="lesson-summary__step-nav"
         showDots
-        showNext={(page) => activeLesson.completed || !isPracticePage(page) || practiceCorrect === true}
+        showNext={(page) => {
+          if (page.id === LESSON_1_RETRIEVAL_PAGE_ID) return retrievalPracticeSolved
+          return activeLesson.completed || !isPracticePage(page) || practiceCorrect === true
+        }}
         renderPage={(page) => {
           if (isPracticePage(page)) {
             return (
@@ -253,6 +305,17 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
                 {practiceSubmitted && practiceCorrect !== null && (
                   <FeedbackBanner
                     variant={practiceCorrect ? 'success' : 'error'}
+                    submissionKey={practiceFeedbackSubmissionKey}
+                    aiFeedback={{
+                      lessonId: LESSON_1_ID,
+                      conceptKey: 'multiplication-shortcut',
+                      conceptLabel: 'Multiplication shortcut',
+                      problem: practicePrompt,
+                      learnerAnswer: submittedPracticeAnswer,
+                      correctAnswer: '40',
+                      attemptedAnswers: practiceAttemptedAnswers,
+                      context: `The learner is practicing the multiplication shortcut with ${crownsLabel}, ${dressesLabel}, and ${shoesLabel}.`,
+                    }}
                     voiceCue={{
                       correctClipKey: 'lesson1.feedback.correct',
                       enabled: profile.voiceEnabled,
@@ -268,9 +331,10 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
                           ? copy.practiceIncorrect
                           : page.feedback?.tryAgain ?? copy.practiceIncorrect
                     }
+                    solution={practiceCorrect ? `Solution: **${practiceEquation}**.` : undefined}
                   />
                 )}
-                {practiceCorrect === false && practiceWrongAttempts >= 3 && (
+                {practiceCorrect === false && canShowPracticeSolution && (
                   <FeedbackBanner
                     variant="info"
                     message={`${copy.practiceSolution}\n\nSolution: **${practiceEquation}**.`}
@@ -287,6 +351,20 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
 
           if (page.id === 'lesson-1-complete') {
             return <LessonText text={`${copy.completeBody} Great work, ${princessName}!`} />
+          }
+
+          if (page.id === LESSON_1_RETRIEVAL_PAGE_ID) {
+            return (
+              <RetrievalPracticeSet
+                initiallySolved={retrievalPracticeSolved}
+                onSolvedChange={(solved) => {
+                  if (solved && !retrievalPracticeSolved) {
+                    setSummaryState({ retrievalPracticeSolved: true })
+                  }
+                }}
+                problems={LESSON_1_RETRIEVAL_PROBLEMS}
+              />
+            )
           }
 
           return (

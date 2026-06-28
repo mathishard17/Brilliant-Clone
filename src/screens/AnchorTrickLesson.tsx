@@ -193,7 +193,6 @@ export function AnchorTrickLesson() {
         onPageChange={updatePage}
         onComplete={() => void updateScreen(3, LESSON_1_ID)}
         completeLabel={copy.screen2Button}
-        contentClassName="anchor-lesson__content"
         navClassName="anchor-lesson__nav"
         getPageLabel={(_, pageIndex, totalPages) => (
           <p className="anchor-lesson__step-label">

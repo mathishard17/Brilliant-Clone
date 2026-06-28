@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from 'react'
 import '../screens/screens.css'
 import { Closet, type ClosetCategory } from '../components/Closet'
 import { ChallengeQuestion } from '../components/ChallengeQuestion'
-import { DefaultInteractiveVisualization } from '../components/DefaultInteractiveVisualization'
 import { FeedbackBanner } from '../components/FeedbackBanner'
 import { HintButton } from '../components/HintButton'
 import { LessonText } from '../components/LessonText'
@@ -18,6 +17,7 @@ import { LESSON_1_ID } from '../types/lesson'
 import { useOutfitTracker } from '../hooks/useOutfitTracker'
 import type { OutfitTriple } from '../types/lesson'
 import { getProfileLessonProgress } from '../utils/lessonProgress'
+import { canRevealSolution } from '../utils/solutionReveal'
 import {
   getLesson1ThemeCopy,
   getLesson1ThemeVisual,
@@ -72,9 +72,20 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
   const hasFoundAllOutfits = foundOutfitCount >= content.answer
   const isAnswerCorrect = submitted && screen3.answer === content.answer
   const isSolved = screen3.isCorrect === true || isAnswerCorrect
+  const canShowSolution = canRevealSolution({
+    memory: profile.studentMemory,
+    conceptKey: 'counting-choice-triples',
+    wrongAttempts,
+  })
   const correctFeedbackMessage = hasFoundAllOutfits
     ? `${theme.feedback.correct} **12** is exactly right, ${princessName}! You also filled the closet log with all **${content.answer} ${variationName}**.`
     : `${theme.feedback.correct} **12** is exactly right, ${princessName}! The closet log can help you explore more ${variationName}, but you're ready to continue.`
+  const submittedAnswer = screen3.attemptedAnswers[screen3.attemptedAnswers.length - 1] ?? answerInput
+  const feedbackSubmissionKey = [
+    screen3.attemptedAnswers.join(','),
+    screen3.wrongAttempts,
+    String(screen3.isCorrect),
+  ].join('|')
 
   const handleNewOutfit = useCallback(
     (outfit: OutfitTriple) => {
@@ -102,8 +113,7 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
     submitInFlightRef.current = true
     const normalizedAnswer = answerInput.trim()
     const answer = Number(answerInput)
-    const answerMatches = answer === content.answer
-    const isCorrect = answerMatches
+    const isCorrect = answer === content.answer
     const attemptedAnswers = screen3.attemptedAnswers.includes(normalizedAnswer)
       ? screen3.attemptedAnswers
       : [...screen3.attemptedAnswers, normalizedAnswer]
@@ -147,39 +157,36 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
         themePreference={profile.themePreference}
         label="Listen to this part"
       />
+      <p className="endurance-tip">
+        Endurance boost: play with the closet before answering. Each new variation you find helps your Endurance grow.
+      </p>
 
-      {content.visualization === 'outfit-triples' ? (
-        <>
-          <div className="lesson-screen__play-area">
-            <Closet categories={closetCategories} selected={selected} onSelect={handleSelect} />
-            <PrincessCanvas
-              crownId={crownId}
-              dressId={dressId}
-              shoeId={shoeId}
-              variant={visual.character}
-              characterConfig={visual.characterConfig}
-              itemStyles={itemMotifs}
-              appearance={profile.appearance}
-            />
-          </div>
+      <div className="lesson-screen__play-area">
+        <Closet categories={closetCategories} selected={selected} onSelect={handleSelect} />
+        <PrincessCanvas
+          crownId={crownId}
+          dressId={dressId}
+          shoeId={shoeId}
+          variant={visual.character}
+          characterConfig={visual.characterConfig}
+          itemStyles={itemMotifs}
+          appearance={profile.appearance}
+        />
+      </div>
 
-          <OutfitLog
-            outfits={screen3.discoveredOutfits}
-            total={screen3.discoveredOutfits.length}
-            mode="triple"
-            onReset={() => void handleReset()}
-            heading={copy.logHeading}
-            emptyMessage={copy.logEmpty}
-            counterLabel={copy.logCounter}
-            itemLabels={itemLabels}
-            itemMotifs={itemMotifs}
-            motifColor={motif.primary}
-            motifShape={motif.shape}
-          />
-        </>
-      ) : (
-        <DefaultInteractiveVisualization />
-      )}
+      <OutfitLog
+        outfits={screen3.discoveredOutfits}
+        total={screen3.discoveredOutfits.length}
+        mode="triple"
+        onReset={() => void handleReset()}
+        heading={copy.logHeading}
+        emptyMessage={copy.logEmpty}
+        counterLabel={copy.logCounter}
+        itemLabels={itemLabels}
+        itemMotifs={itemMotifs}
+        motifColor={motif.primary}
+        motifShape={motif.shape}
+      />
 
       <ChallengeQuestion
         prompt={challengePrompt}
@@ -216,6 +223,17 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
       {submitted && (
         <FeedbackBanner
           variant={isSolved ? 'success' : 'error'}
+          submissionKey={feedbackSubmissionKey}
+          aiFeedback={{
+            lessonId: LESSON_1_ID,
+            conceptKey: 'counting-choice-triples',
+            conceptLabel: 'Counting choice triples',
+            problem: challengePrompt,
+            learnerAnswer: submittedAnswer,
+            correctAnswer: String(content.answer),
+            attemptedAnswers: screen3.attemptedAnswers,
+            context: `The learner is extending earlier ${theme.learnerRole} outfits by adding one choice from ${shoesLabel}.`,
+          }}
           voiceCue={{
             correctClipKey: 'lesson1.feedback.correct',
             enabled: profile.voiceEnabled,
@@ -231,10 +249,11 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
                 ? detailedIncorrectMessage
                 : `${theme.feedback.tryAgain} ${princessName}!`
           }
+          solution={isSolved ? solutionMessage : undefined}
         />
       )}
 
-      {submitted && !isSolved && screen3.isCorrect === false && wrongAttempts >= 3 && (
+      {submitted && !isSolved && screen3.isCorrect === false && canShowSolution && (
         <FeedbackBanner
           variant="info"
           message={`Solution reveal: ${theme.feedback.hint}\n\n${solutionMessage}`}

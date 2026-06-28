@@ -9,8 +9,6 @@ type VoiceClipKey =
   | 'lesson1.screen2.anchorIntro'
   | 'lesson1.screen3.shoesIntro'
   | 'lesson1.screen4.shortcutIntro'
-  | 'lesson1.screen3.tryAgain'
-  | 'lesson1.screen4.complete'
   | 'lesson1.feedback.correct'
   | 'lesson1.feedback.tryAgain'
   | 'lesson2.screen1.arrangementsIntro'
@@ -22,7 +20,6 @@ type VoiceClipKey =
   | 'lesson3.feedback.correct'
   | 'lesson3.feedback.tryAgain'
   | 'lesson4.screen1.spinnerIntro'
-  | 'lesson4.screen2.compareIntro'
   | 'lesson4.feedback.correct'
   | 'lesson4.feedback.tryAgain'
   | 'lesson5.screen1.sampleSpaceIntro'
@@ -78,18 +75,6 @@ export const VOICE_CLIPS: Record<VoiceClipKey, LessonVoiceClip> = {
     clipKey: 'lesson1.screen4.shortcutIntro',
     revealPolicy: 'safeBeforeAnswer',
     text: 'The shortcut is to count the choices in each category, then multiply the groups.',
-  }),
-  'lesson1.screen3.tryAgain': createLessonVoiceClip({
-    lessonId: LESSON_1_ID,
-    clipKey: 'lesson1.screen3.tryAgain',
-    revealPolicy: 'safeBeforeAnswer',
-    text: 'Try building the outfits before answering, then count what changed.',
-  }),
-  'lesson1.screen4.complete': createLessonVoiceClip({
-    lessonId: LESSON_1_ID,
-    clipKey: 'lesson1.screen4.complete',
-    revealPolicy: 'postCorrect',
-    text: 'Great work! You used multiplication as a shortcut for counting choices.',
   }),
   'lesson1.feedback.correct': createLessonVoiceClip({
     lessonId: LESSON_1_ID,
@@ -156,12 +141,6 @@ export const VOICE_CLIPS: Record<VoiceClipKey, LessonVoiceClip> = {
     clipKey: 'lesson4.screen1.spinnerIntro',
     revealPolicy: 'safeBeforeAnswer',
     text: 'A spinner is a set of possible landing spots. Count the spaces before you choose.',
-  }),
-  'lesson4.screen2.compareIntro': createLessonVoiceClip({
-    lessonId: LESSON_4_ID,
-    clipKey: 'lesson4.screen2.compareIntro',
-    revealPolicy: 'safeBeforeAnswer',
-    text: 'Compare the spinner sections before deciding which outcome is more likely.',
   }),
   'lesson4.feedback.correct': createLessonVoiceClip({
     lessonId: LESSON_4_ID,

@@ -1,31 +1,14 @@
-import { THEME_PREFERENCES } from '../themes/themeTypes'
 import type {
   LessonVoiceClip,
-  ThemeVoiceProfile,
-  VoicePace,
-  VoicePitch,
-  VoiceProviderName,
   VoiceRevealPolicy,
-  VoiceStyle,
   VoiceValidationResult,
 } from './voiceTypes'
 
-const VOICE_PROVIDERS: readonly VoiceProviderName[] = ['cartesia']
 const VOICE_REVEAL_POLICIES: readonly VoiceRevealPolicy[] = [
   'safeBeforeAnswer',
   'postCorrect',
   'solutionOnly',
 ]
-const VOICE_STYLES: readonly VoiceStyle[] = [
-  'storyteller',
-  'mission',
-  'fieldGuide',
-  'helper',
-  'coach',
-  'studio',
-]
-const VOICE_PACES: readonly VoicePace[] = ['calm', 'medium', 'bright']
-const VOICE_PITCHES: readonly VoicePitch[] = ['low', 'medium', 'high']
 
 const NUMBER_WORD_PATTERN =
   /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|forty)\b/i
@@ -45,31 +28,6 @@ function isOneOf<T extends string>(value: string, options: readonly T[]): value 
 
 function hasText(value: string): boolean {
   return value.trim().length > 0
-}
-
-export function validateThemeVoiceProfile(profile: ThemeVoiceProfile): VoiceValidationResult {
-  const errors: string[] = []
-
-  if (!THEME_PREFERENCES.includes(profile.themePreference)) {
-    errors.push(`Unknown theme preference: ${profile.themePreference}`)
-  }
-  if (!isOneOf(profile.provider, VOICE_PROVIDERS)) {
-    errors.push(`Unknown voice provider: ${profile.provider}`)
-  }
-  if (!hasText(profile.voiceKey)) {
-    errors.push('Voice profile is missing a voiceKey.')
-  }
-  if (!isOneOf(profile.style, VOICE_STYLES)) {
-    errors.push(`Unknown voice style: ${profile.style}`)
-  }
-  if (!isOneOf(profile.pace, VOICE_PACES)) {
-    errors.push(`Unknown voice pace: ${profile.pace}`)
-  }
-  if (profile.pitch && !isOneOf(profile.pitch, VOICE_PITCHES)) {
-    errors.push(`Unknown voice pitch: ${profile.pitch}`)
-  }
-
-  return result(errors)
 }
 
 export function validateLessonVoiceClip(

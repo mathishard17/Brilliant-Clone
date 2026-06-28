@@ -23,7 +23,8 @@ The current theme bridge approach works, but later lessons have concepts that do
 - `src/lessons/lesson3/`
 - `src/lessons/lesson4/`
 - `src/lessons/lesson5/`
-- `functions/index.js`
+- `api/generate-custom-theme.js`
+- `api/get-voice-clip.js`
 
 ## Implementation Slices
 
@@ -56,7 +57,7 @@ The current theme bridge approach works, but later lessons have concepts that do
 - Agent G: Cross-theme QA
   - Draft a matrix covering every theme preference across Lessons 2-5.
 - Parent/integrator:
-  - Owns `themeTypes.ts`, `themeValidation.ts`, `themeResolver.ts`, `defaultThemes.ts`, `functions/index.js`, backward-compatible fallbacks, and final build.
+  - Owns `themeTypes.ts`, `themeValidation.ts`, `themeResolver.ts`, `defaultThemes.ts`, API-route prompt/catalog updates, backward-compatible fallbacks, and final build.
 
 ## Done When
 

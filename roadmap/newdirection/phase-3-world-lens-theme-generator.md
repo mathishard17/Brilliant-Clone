@@ -15,7 +15,7 @@ A world lens changes presentation, copy, voice, missions, icons, colors, and rea
 - `src/themes/themeResolver.ts`
 - `src/themes/defaultThemes.ts`
 - `src/services/themeGeneration.ts`
-- `functions/index.js`
+- `api/generate-custom-theme.js`
 - `src/types/knowledgeGraph.ts`
 - `src/services/userProgress.ts`
 
@@ -23,7 +23,7 @@ A world lens changes presentation, copy, voice, missions, icons, colors, and rea
 
 1. Define `GeneratedWorldLens`, `NodeSkin`, and `EdgeTransferPrompt`.
 2. Add validation for generated world lenses.
-3. Extend the callable prompt to use `MATH_NODE`, `USER_THEME`, and graph node IDs.
+3. Extend the API-route prompt to use `MATH_NODE`, `USER_THEME`, and graph node IDs.
 4. Store saved lenses without resetting mastery.
 5. Render active lens styling in the graph hub.
 6. Fall back to manual lens presets if AI fails.
@@ -44,7 +44,7 @@ A world lens changes presentation, copy, voice, missions, icons, colors, and rea
 - Agent E: UI integration proposal
   - Propose how generated world lenses appear in the graph hub and node detail panel.
 - Parent/integrator:
-  - Owns `functions/index.js`, validation, profile storage, final prompt, and fallback behavior.
+  - Owns `api/generate-custom-theme.js`, validation, profile storage, final prompt, and fallback behavior.
 
 ## Guardrails
 

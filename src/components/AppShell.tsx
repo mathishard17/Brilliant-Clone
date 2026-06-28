@@ -27,6 +27,7 @@ interface AuthenticatedAppProps {
 
 function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
   const { signOut, setProfile } = useAuth()
+  const [aiSaving, setAiSaving] = useState(false)
   const [voiceSaving, setVoiceSaving] = useState(false)
 
   const {
@@ -85,6 +86,21 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
     }
   }
 
+  async function handleAiToggle() {
+    if (aiSaving) return
+    const previous = localProfile
+    const nextProfile = { ...localProfile, aiEnabled: !localProfile.aiEnabled }
+    setAiSaving(true)
+    setProfile(nextProfile)
+    try {
+      await updateUserProfile(user.uid, { aiEnabled: nextProfile.aiEnabled })
+    } catch {
+      setProfile(previous)
+    } finally {
+      setAiSaving(false)
+    }
+  }
+
   return (
     <LessonProvider
       value={{
@@ -109,6 +125,15 @@ function AuthenticatedApp({ user, profile }: AuthenticatedAppProps) {
               Home
             </button>
           )}
+          <button
+            type="button"
+            className={`app-header__ai-btn${localProfile.aiEnabled ? ' app-header__ai-btn--on' : ''}`}
+            onClick={() => void handleAiToggle()}
+            aria-pressed={localProfile.aiEnabled}
+            disabled={aiSaving}
+          >
+            {aiSaving ? 'Saving AI...' : localProfile.aiEnabled ? 'AI On' : 'AI Off'}
+          </button>
           <button
             type="button"
             className={`app-header__voice-btn${localProfile.voiceEnabled ? ' app-header__voice-btn--on' : ''}`}

@@ -19,7 +19,7 @@ export function requirePost(request, response) {
 }
 
 export function getOpenAiApiKey() {
-  return process.env.OPENAI_API_KEY || process.env.openai_api_key || ''
+  return process.env.OPENAI_API_KEY || ''
 }
 
 function extractOutputText(payload) {

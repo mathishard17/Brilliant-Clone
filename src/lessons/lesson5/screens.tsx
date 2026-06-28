@@ -6,6 +6,7 @@ import { FeedbackBanner } from '../../components/FeedbackBanner'
 import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
+import { RetrievalPracticeSet } from '../../components/RetrievalPracticeSet'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import { useLesson } from '../../hooks/useLesson'
@@ -20,6 +21,7 @@ import type { Lesson1ThemePack } from '../../themes/themeTypes'
 import { playCompletionTada } from '../../utils/completionSound'
 import { iconForThemeLabel } from '../../utils/themeEmoji'
 import { getProfileLessonProgress } from '../../utils/lessonProgress'
+import { canRevealSolution } from '../../utils/solutionReveal'
 import {
   builderStartingSpaces,
   challenge1,
@@ -59,6 +61,7 @@ type Lesson5BuilderState = {
 
 type Lesson5PageState = {
   pageIndex: number
+  retrievalPracticeSolved?: boolean
 }
 
 const OUTCOME_SYMBOLS: Record<Lesson5OutcomeKind, string> = {
@@ -444,7 +447,9 @@ function themeLesson5Challenge(
     body: challenge.body ? themeLesson5Text(challenge.body, themeBridge) : undefined,
     feedback: challenge.feedback && {
       correct: themeLesson5Text(challenge.feedback.correct, themeBridge),
-      incorrect: themeLesson5Text(challenge.feedback.incorrect, themeBridge),
+      incorrect: challenge.feedback.incorrect
+        ? themeLesson5Text(challenge.feedback.incorrect, themeBridge)
+        : undefined,
       tryAgain: challenge.feedback.tryAgain
         ? themeLesson5Text(challenge.feedback.tryAgain, themeBridge)
         : undefined,
@@ -598,20 +603,19 @@ function CarnivalSpinner({
 interface SampleSpaceTrayProps {
   spaces: readonly Lesson5SpinnerSpace[]
   selectedIndexes?: readonly number[]
-  emptyText?: string
 }
 
-function SampleSpaceTray({ spaces, selectedIndexes, emptyText }: SampleSpaceTrayProps) {
+function SampleSpaceTray({ spaces, selectedIndexes }: SampleSpaceTrayProps) {
   const themeBridge = useLesson5ThemeBridge()
   const { display } = themeBridge
-  const visibleIndexes = selectedIndexes ?? spaces.map((_, index) => index)
+  const visibleIndexes = selectedIndexes ?? []
 
   return (
     <div className="lesson-5-tray" aria-live="polite">
       <h2>Sample space tray</h2>
       {visibleIndexes.length === 0 ? (
         <p className="lesson-5-tray__empty">
-          {emptyText ?? 'Tap spinner spaces to add possible outcomes here.'}
+          Tap spinner spaces to add possible outcomes here.
         </p>
       ) : (
         <ol className="lesson-5-tray__cards">
@@ -670,7 +674,7 @@ function FairnessMeter({ spaces, opponent, showResult = true }: FairnessMeterPro
               }}
             />
           </div>
-          <strong>{princessCount}/{total}</strong>
+          <strong>{showResult ? `${princessCount}/${total}` : '?'}</strong>
         </div>
         <div className="lesson-5-meter__row">
           <span>{opponentLabel}</span>
@@ -682,12 +686,12 @@ function FairnessMeter({ spaces, opponent, showResult = true }: FairnessMeterPro
               }}
             />
           </div>
-          <strong>{opponentCount}/{total}</strong>
+          <strong>{showResult ? `${opponentCount}/${total}` : '?'}</strong>
         </div>
       </div>
       {noWinnerCount > 0 && (
         <p className="lesson-5-meter__note">
-          No-winner spaces: <strong>{noWinnerCount}/{total}</strong>
+          No-winner spaces: <strong>{showResult ? `${noWinnerCount}/${total}` : '?'}</strong>
         </p>
       )}
       {showResult && (
@@ -734,6 +738,18 @@ function Lesson5ChallengeBlock({ challenge, children }: Lesson5ChallengeBlockPro
   const [state, setState] = useLesson5ChallengeState(challenge.id)
   const { submitted, isCorrect, wrongAttempts, attemptedAnswers } = state
   const [answerInput, setAnswerInput] = useState(state.answerInput)
+  const submittedAnswer = attemptedAnswers[attemptedAnswers.length - 1] ?? answerInput
+  const conceptKey = `lesson-5-${challenge.id}`
+  const canShowSolution = canRevealSolution({
+    memory: profile.studentMemory,
+    conceptKey,
+    wrongAttempts,
+  })
+  const feedbackSubmissionKey = [
+    attemptedAnswers.join(','),
+    wrongAttempts,
+    String(isCorrect),
+  ].join('|')
 
   function handleSubmit() {
     const normalizedAnswer = answerInput.trim()
@@ -750,7 +766,7 @@ function Lesson5ChallengeBlock({ challenge, children }: Lesson5ChallengeBlockPro
     void recordStudentMemoryEvent({
       type: 'challengeAttempt',
       lessonId: LESSON_5_ID,
-      conceptKey: `lesson-5-${challenge.id}`,
+      conceptKey,
       label: 'Fair sample spaces',
       outcome: correct ? 'correct' : 'incorrect',
       learnerAnswer: normalizedAnswer,
@@ -781,7 +797,7 @@ function Lesson5ChallengeBlock({ challenge, children }: Lesson5ChallengeBlockPro
       />
       <HintButton
         lessonId={LESSON_5_ID}
-        conceptKey={`lesson-5-${challenge.id}`}
+        conceptKey={conceptKey}
         conceptLabel="Fair sample spaces"
         prompt={challenge.prompt}
         context={challenge.body ?? 'The learner is counting outcomes to decide whether a spinner game is fair.'}
@@ -795,6 +811,17 @@ function Lesson5ChallengeBlock({ challenge, children }: Lesson5ChallengeBlockPro
       {submitted && isCorrect !== null && feedback && (
         <FeedbackBanner
           variant={isCorrect ? 'success' : 'error'}
+          submissionKey={feedbackSubmissionKey}
+          aiFeedback={{
+            lessonId: LESSON_5_ID,
+            conceptKey,
+            conceptLabel: 'Fair sample spaces',
+            problem: challenge.prompt,
+            learnerAnswer: submittedAnswer,
+            correctAnswer: String(challenge.answer),
+            attemptedAnswers,
+            context: challenge.body ?? 'The learner is counting outcomes to decide whether a spinner game is fair.',
+          }}
           voiceCue={{
             correctClipKey: 'lesson5.feedback.correct',
             enabled: profile.voiceEnabled,
@@ -804,9 +831,10 @@ function Lesson5ChallengeBlock({ challenge, children }: Lesson5ChallengeBlockPro
             tryAgainClipKey: 'lesson5.feedback.tryAgain',
           }}
           message={feedback}
+          solution={isCorrect ? challenge.feedback?.solution : undefined}
         />
       )}
-      {isCorrect === false && wrongAttempts >= 3 && challenge.feedback?.solution && (
+      {isCorrect === false && canShowSolution && challenge.feedback?.solution && (
         <FeedbackBanner variant="info" message={challenge.feedback.solution} />
       )}
     </div>
@@ -830,6 +858,27 @@ function MiniLessonPageContent({ page }: { page: Lesson5ExplanationPage }) {
 }
 
 const TWO_SPINNER_CHOICES: Lesson5OutcomeKind[] = ['crown', 'dragon']
+
+const lesson5RetrievalPracticeProblems = [
+  {
+    id: 'lesson-5-practice-fairness-check',
+    prompt:
+      'Fairness fix: a 6-space spinner has **3 Princess spaces**, **2 Dragon spaces**, and **1 no-winner space**. How many no-winner spaces should change to Dragon spaces to make the game fair?',
+    answer: 1,
+    correctFeedback:
+      'Yes. Change **1 no-winner space** to Dragon, and both players have **3 winning spaces**.',
+    tryAgainFeedback: 'Fair means each player has the same chance. Keep Princess at 3 and make Dragon reach 3 too.',
+  },
+  {
+    id: 'lesson-5-practice-sample-space-counting',
+    prompt:
+      'Sample space check: Spinner A has **3 choices** and Spinner B has **2 choices**. How many outcome pairs are possible?',
+    answer: 6,
+    correctFeedback: 'Right: 3 choices times 2 choices makes **6** outcome pairs.',
+    tryAgainFeedback: 'List or multiply the choices from Spinner A and Spinner B.',
+  },
+]
+const LESSON_5_RETRIEVAL_PRACTICE_PAGE_ID = 'lesson-5-retrieval-practice'
 
 function TinyRoyalSpinner({
   label,
@@ -884,7 +933,7 @@ function TinyRoyalSpinner({
   )
 }
 
-function TwoSpinnerReviewVisual() {
+function TwoSpinnerReviewVisual({ revealOutcomes = false }: { revealOutcomes?: boolean }) {
   const themeBridge = useLesson5ThemeBridge()
   const { display } = themeBridge
   const [spinnerA, setSpinnerA] = useState<Lesson5OutcomeKind>('crown')
@@ -917,13 +966,13 @@ function TwoSpinnerReviewVisual() {
       </p>
 
       <div className="lesson-5-two-spinners__outcomes">
-        <h3>All possible pairs</h3>
+        <h3>{revealOutcomes ? 'All possible pairs' : 'Possible pairs to check'}</h3>
         <ol>
           {outcomes.map(([first, second]) => (
             <li
               key={`${first}-${second}`}
-              className={first === second ? 'lesson-5-two-spinners__outcome--match' : ''}
-              style={first === second ? themeBridge.matchOutcomeStyle : undefined}
+              className={revealOutcomes && first === second ? 'lesson-5-two-spinners__outcome--match' : ''}
+              style={revealOutcomes && first === second ? themeBridge.matchOutcomeStyle : undefined}
             >
               <span className="lesson-5-two-spinners__pair">
                 <span
@@ -942,7 +991,7 @@ function TwoSpinnerReviewVisual() {
                   {display[second].label}
                 </span>
               </span>
-              <strong>{first === second ? 'Match' : 'No match'}</strong>
+              <strong>{revealOutcomes ? (first === second ? 'Match' : 'No match') : 'Check after answer'}</strong>
             </li>
           ))}
         </ol>
@@ -984,6 +1033,9 @@ export function Lesson5SampleSpaceIntro({ princessName }: Lesson5SectionProps) {
         themePreference={profile.themePreference}
         label="Listen to sample space tip"
       />
+      <p className="endurance-tip">
+        Endurance boost: tap spinner spaces to fill the sample-space tray. Careful exploring can add Endurance points.
+      </p>
 
       <div className="lesson-screen__play-area">
         <CarnivalSpinner
@@ -1027,10 +1079,15 @@ export function Lesson5SpinnerInspector({ princessName }: Lesson5SectionProps) {
   const { profile, updateScreen } = useLesson()
   const themeBridge = useLesson5ThemeBridge()
   const miniLesson = useMemo(() => sampleSpaceMiniLesson(princessName), [princessName])
+  const [sampleSpaceState] = useSectionState<Lesson5SampleSpaceState>(
+    'lesson-5-sample-space-tray',
+    { selectedIndexes: [] },
+  )
   const [pageState, setPageState] = useSectionState<Lesson5PageState>(
     'lesson-5-spinner-inspector-pages',
     { pageIndex: 0 },
   )
+  const selectedIndexes = normalizeSelectedIndexes(sampleSpaceState.selectedIndexes, spinnerInspectorSpaces.length)
   const outcomesChallengeSolved = useLesson5ChallengeSolved('lesson-5-count-favorable-outcomes')
   const pageIndex = pageState.pageIndex
 
@@ -1038,7 +1095,7 @@ export function Lesson5SpinnerInspector({ princessName }: Lesson5SectionProps) {
     <section className="lesson-screen lesson-screen--themed lesson-5" style={themeBridge.screenStyle}>
       <ScreenBackButton label="← Back" onClick={() => void updateScreen(1)} />
       <h1>{themeLesson5Text(miniLesson.title, themeBridge)}</h1>
-      <SampleSpaceTray spaces={spinnerInspectorSpaces} emptyText="The recorder is ready to list outcomes." />
+      <SampleSpaceTray spaces={spinnerInspectorSpaces} selectedIndexes={selectedIndexes} />
       <ClickthroughMiniLesson
         miniLesson={miniLesson}
         currentPageIndex={pageIndex}
@@ -1161,14 +1218,18 @@ export function Lesson5FairSpinnerBuilder({ princessName }: Lesson5SectionProps)
           />
           <LessonButton label="Reset spinner" variant="secondary" onClick={resetBuilder} />
         </div>
-        <FairnessMeter spaces={spaces} opponent="dragon" />
+        <FairnessMeter spaces={spaces} opponent="dragon" showResult={challengeCorrect} />
       </div>
 
-      {isFair && (
+      {challengeCorrect && isFair && (
         <FeedbackBanner
           variant="success"
           message={themeLesson5Text(
             `The booth is fair now: ${display.crown.label} and ${display.dragon.label} each have **2 out of 4** winning spaces.`,
+            themeBridge,
+          )}
+          solution={themeLesson5Text(
+            `Solution: ${display.crown.label} has **2 out of 4** winning spaces and ${display.dragon.label} has **2 out of 4**, so the game is balanced.`,
             themeBridge,
           )}
         />
@@ -1192,7 +1253,22 @@ export function Lesson5RoyalReview({ princessName }: Lesson5SectionProps) {
   const { profile, updateLesson, updateScreen } = useLesson()
   const activeLesson = getProfileLessonProgress(profile, LESSON_5_ID)
   const themeBridge = useLesson5ThemeBridge()
-  const miniLesson = useMemo(() => royalReviewMiniLesson(princessName), [princessName])
+  const miniLesson = useMemo(() => {
+    const lesson = royalReviewMiniLesson(princessName)
+    return {
+      ...lesson,
+      pages: [
+        ...lesson.pages.map((page) =>
+          page.id === 'lesson-5-two-spinner-fairness' ? { ...page, nextLabel: 'Practice' } : page,
+        ),
+        {
+          id: LESSON_5_RETRIEVAL_PRACTICE_PAGE_ID,
+          type: 'explanation' as const,
+          body: '',
+        },
+      ],
+    }
+  }, [princessName])
   const [pageState, setPageState] = useSectionState<Lesson5PageState>(
     'lesson-5-royal-review-pages',
     { pageIndex: 0 },
@@ -1241,8 +1317,27 @@ export function Lesson5RoyalReview({ princessName }: Lesson5SectionProps) {
         completeLabel={lessonCompleted ? 'Return to Academy' : 'Finish Lesson'}
         navClassName="anchor-lesson__nav"
         showDots
-        showNext={(page) => !isChallengePage(page) || isReviewChallengeSolved(page.id)}
+        showNext={(page) => {
+          if (page.id === LESSON_5_RETRIEVAL_PRACTICE_PAGE_ID) {
+            return pageState.retrievalPracticeSolved === true
+          }
+          return !isChallengePage(page) || isReviewChallengeSolved(page.id)
+        }}
         renderPage={(page) => {
+          if (page.id === LESSON_5_RETRIEVAL_PRACTICE_PAGE_ID) {
+            return (
+              <RetrievalPracticeSet
+                initiallySolved={pageState.retrievalPracticeSolved === true}
+                onSolvedChange={(solved) => {
+                  if (solved && pageState.retrievalPracticeSolved !== true) {
+                    setPageState({ retrievalPracticeSolved: true })
+                  }
+                }}
+                problems={lesson5RetrievalPracticeProblems}
+              />
+            )
+          }
+
           if (isChallengePage(page)) {
             return (
               <Lesson5ChallengeBlock
@@ -1262,7 +1357,7 @@ export function Lesson5RoyalReview({ princessName }: Lesson5SectionProps) {
                     />
                   </>
                 ) : (
-                  <TwoSpinnerReviewVisual />
+                  <TwoSpinnerReviewVisual revealOutcomes={twoSpinnerChallengeSolved} />
                 )}
               </Lesson5ChallengeBlock>
             )
@@ -1271,7 +1366,7 @@ export function Lesson5RoyalReview({ princessName }: Lesson5SectionProps) {
           return (
             <>
               <MiniLessonPageContent page={page} />
-              {page.id === 'two-spinner-grid' && <TwoSpinnerReviewVisual />}
+              {page.id === 'two-spinner-grid' && <TwoSpinnerReviewVisual revealOutcomes={twoSpinnerChallengeSolved} />}
             </>
           )
         }}

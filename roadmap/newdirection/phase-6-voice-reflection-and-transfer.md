@@ -17,7 +17,7 @@ The learner may answer verbally or skip.
 - `src/voice/`
 - `src/hooks/useVoiceClip.ts`
 - `src/components/VoiceButton.tsx`
-- `functions/index.js`
+- `api/get-voice-clip.js`
 - `src/services/userProgress.ts`
 - `src/types/user.ts`
 
@@ -40,13 +40,13 @@ The learner may answer verbally or skip.
 - Agent C: Privacy/storage review
   - Propose the minimal stored shape for typed reflections or tags.
   - Explicitly reject raw audio storage unless a future privacy plan exists.
-- Agent D: Functions/cache review
-  - Review `functions/index.js` and voice cache behavior for new reflection clips.
+- Agent D: API/cache review
+  - Review `api/get-voice-clip.js` and voice cache behavior for new reflection clips.
   - Identify backend changes only; parent applies shared edits.
 - Agent E: Transfer prompt proposal
   - Draft how reflection tags can later become world-lens context without changing math logic.
 - Parent/integrator:
-  - Owns `src/voice/voiceClips.ts`, `functions/index.js`, profile data shape, reflection persistence, and final privacy checks.
+  - Owns `src/voice/voiceClips.ts`, `api/get-voice-clip.js`, profile data shape, reflection persistence, and final privacy checks.
 
 ## Privacy Guardrails
 

@@ -2,7 +2,7 @@
 
 Goal: create the server-side boundary that turns safe voice clips into cached audio URLs.
 
-Status: first scaffold implemented. Local request/cache/fallback helpers exist in `src/voice/`, and `functions/getVoiceClip` can call Cartesia server-side, cache MP3 files in Cloud Storage, and return signed URLs after deployment.
+Status: first scaffold implemented. Local request/cache/fallback helpers exist in `src/voice/`, and `/api/get-voice-clip` can call Cartesia server-side, cache eligible MP3 files in Cloud Storage when Firebase Admin credentials are configured, and return audio responses after deployment.
 
 ## Why This Phase Exists
 
@@ -39,14 +39,12 @@ interface VoiceClipResponse {
 - Do not generate `solutionOnly` clips until the client sends proof that the written solution gate is open, or leave those clips out of the first pass.
 - Keep the adapter boundary provider-neutral enough that ElevenLabs can replace Cartesia later, but implement only Cartesia first.
 
-## Firebase Options
+## Backend Boundary
 
-Prefer one of:
+The current app uses a Vercel-style API route:
 
-- Firebase Functions callable/HTTPS endpoint plus Cloud Storage for audio files.
-- Firebase App Hosting backend route if the project moves to that stack later.
-
-For the current Vite/Firebase Hosting app, Firebase Functions is the likely first implementation.
+- `/api/get-voice-clip` as the server boundary for Cartesia and cache lookups.
+- Firebase Storage for optional generated-audio caching when Firebase Admin credentials and a bucket are configured.
 
 ## Storage
 
@@ -75,6 +73,6 @@ Do not store provider responses in `users/{uid}`.
 
 ## Remaining Manual / Deploy Work
 
-- Deploy or run the Functions emulator before real audio can be requested.
+- Deploy the API route or run the local dev server middleware before real audio can be requested.
 - Confirm Cartesia cache rights before using generated clips beyond local/demo testing.
 - Pick real Cartesia voice IDs and configure `CARTESIA_DEFAULT_VOICE_ID` or per-theme `CARTESIA_VOICE_ID_*` values if the default example voice is not suitable.

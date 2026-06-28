@@ -6,28 +6,20 @@ import type {
   InteractiveChallengeContent,
 } from '../../types/lesson'
 
+type Lesson1InteractiveChallengeContent = Pick<
+  InteractiveChallengeContent,
+  'answer' | 'id' | 'visualization'
+>
+
 /** Gentle nudge shown on the first wrong answer, before the detailed hint. */
 function firstTryAgainFeedback(princessName: string) {
   return `Hmm... that's not it, ${princessName}, try again!`
 }
 
-export const screen1InteractiveChallenge: InteractiveChallengeContent = {
+export const screen1InteractiveChallenge: Lesson1InteractiveChallengeContent = {
   id: 'princess-outfit-pairs',
-  heading: '👑 Dress Up the Princess!',
-  body: (princessName) =>
-    `Welcome, ${princessName}! Tap different items in the princess closet to change the princess's outfit. See how many **unique outfits** you can design!`,
   visualization: 'outfit-pairs',
-  prompt:
-    'How many completely **unique princess outfits** can you make in total? (An outfit is 1 crown and 1 dress)',
   answer: 6,
-  feedback: {
-    correct: (princessName) =>
-      `Magical, ${princessName}! **6 combinations** is exactly right. Let's look at the trick to see why that works.`,
-    incorrect: (princessName) =>
-      `Not quite, ${princessName}! Let's jump into a **secret palace trick** to see how to easily count them all without losing track.`,
-    tryAgain: firstTryAgainFeedback,
-    solution: () => 'Solution: **2 crowns × 3 dresses = 6 unique princess outfits**.',
-  },
 }
 
 interface Screen2Step extends ExplanationMiniLessonPage {
@@ -83,23 +75,10 @@ export const screen2MiniLesson: ClickthroughMiniLesson<Screen2Step> = {
   pages: screen2Steps,
 }
 
-export const screen3InteractiveChallenge: InteractiveChallengeContent = {
+export const screen3InteractiveChallenge: Lesson1InteractiveChallengeContent = {
   id: 'princess-outfit-triples',
-  heading: '🥿 Complete the Princess Look!',
-  body: (princessName) =>
-    `Let's make it tougher, ${princessName}. Before the princess goes to the ball, she needs a **pair of shoes**!`,
   visualization: 'outfit-triples',
-  prompt:
-    'How many **total variations** can you make now using 2 crowns, 3 dresses, and 2 pairs of shoes? (An outfit must include 1 crown, 1 dress, and 1 pair of shoes)',
   answer: 12,
-  feedback: {
-    correct: (princessName) =>
-      `Spectacular, ${princessName}! **12 unique outfits** is exactly right! You're ready for the grand finale shortcut.`,
-    incorrect: (princessName) =>
-      `Close! Think about it, ${princessName}: start with one finished outfit, then check how the shoe choice can change it.`,
-    tryAgain: firstTryAgainFeedback,
-    solution: () => 'Solution: **2 crowns × 3 dresses × 2 pairs of shoes = 12 total variations**.',
-  },
 }
 
 const SCREEN4_SHORTCUT_HEADING = '💥 The Ultimate Multiplication Shortcut'
