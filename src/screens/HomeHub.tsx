@@ -653,7 +653,15 @@ export function HomeHub({ princessName }: HomeHubProps) {
       style={lesson1ThemeStyle(activeTheme)}
       aria-label={`${princessName}'s home hub`}
     >
-      {activeHomeHubPage === 'board' ? (
+      {activeHomeHubPage === 'builder' ? (
+        <SchemaBuilder
+          activeThemeLabel={activeTheme.themeName}
+          aiEnabled={profile.aiEnabled}
+          cacheScope={aiCacheScope}
+          studentMemory={studentMemory}
+          onBack={() => setActiveHomeHubPage('board')}
+        />
+      ) : activeHomeHubPage === 'board' ? (
         <>
           <KnowledgeGraphHub
             lessons={graphLessons}
@@ -817,14 +825,6 @@ export function HomeHub({ princessName }: HomeHubProps) {
             </div>
           )}
         </>
-      ) : activeHomeHubPage === 'builder' ? (
-        <SchemaBuilder
-          activeThemeLabel={activeTheme.themeName}
-          aiEnabled={profile.aiEnabled}
-          cacheScope={aiCacheScope}
-          studentMemory={studentMemory}
-          onBack={() => setActiveHomeHubPage('board')}
-        />
       ) : (
         <div className="home-hub__manage-page">
           <div className="home-hub__manage-header">
