@@ -269,7 +269,10 @@ export function SchemaBuilder({
 
   function handleGraphWheel(event: WheelEvent<HTMLDivElement>) {
     event.preventDefault()
-    zoomGeneratedGraph(graphView.zoom - event.deltaY * GENERATED_WHEEL_ZOOM_SPEED)
+    setGraphView((view) => ({
+      ...view,
+      zoom: clamp(view.zoom - event.deltaY * GENERATED_WHEEL_ZOOM_SPEED, 0.68, 1.7),
+    }))
   }
 
   async function handleGenerateConceptMap() {
@@ -397,7 +400,7 @@ export function SchemaBuilder({
 
       {!draft || sidebarMode === 'generator' ? (
         <form
-          className="schema-builder__form schema-builder__form--horizontal"
+          className="schema-builder__form"
           onSubmit={(event) => {
             event.preventDefault()
             void handleGenerateConceptMap()
@@ -446,7 +449,7 @@ export function SchemaBuilder({
               Clear
             </button>
           </div>
-          {statusMessage && <p className="schema-builder__status schema-builder__status--top">{statusMessage}</p>}
+          {statusMessage && <p className="schema-builder__status">{statusMessage}</p>}
         </form>
       ) : (
         <aside className="schema-builder__node-sidebar" aria-label="Generated schema nodes">
@@ -480,13 +483,10 @@ export function SchemaBuilder({
       )}
 
       <section className="schema-builder__preview" aria-label="Generated schema preview">
-          {!draft ? (
+          {!draft || sidebarMode === 'generator' ? (
             <div className="schema-builder__empty">
               <h3>Draft preview</h3>
-              <p>
-                Your generated concept map will show here as node cards, edge reasons,
-                warnings, and lazy node material.
-              </p>
+              <p>{draft ? 'Edit the generator inputs, then regenerate the map when you are ready.' : 'Your generated 3D schema graph, node list, edge reasons, warnings, and lazy node material will show here.'}</p>
             </div>
           ) : (
             <>
@@ -651,8 +651,9 @@ export function SchemaBuilder({
                             type="button"
                             className="home-hub__page-btn"
                             onClick={() => void handleSelectNode(selectedNode)}
+                            disabled={!aiEnabled}
                           >
-                            Generate material
+                            {aiEnabled ? 'Generate material' : 'AI is off'}
                           </button>
                         )}
                       </div>

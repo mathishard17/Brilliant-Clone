@@ -9,6 +9,8 @@ The app previously called Firebase callable functions for optional AI features:
 - AI hints
 - Generated theme packs
 - Knowledge-node summaries
+- Generated concept maps and node material
+- Learning notes and answer feedback
 - Voice clips
 
 Those calls require a backend so API keys never ship to the browser. The repo no longer configures a Firebase Functions source in `firebase.json`; backend AI/provider calls live behind Vercel-style API routes.
@@ -20,7 +22,11 @@ Use Firebase Spark for Auth, Firestore, and static app hosting if desired, and m
 This repo now includes a Vercel-style `/api` backend scaffold:
 
 - `/api/generate-ai-hint`
+- `/api/generate-answer-feedback`
+- `/api/generate-concept-map`
 - `/api/generate-custom-theme`
+- `/api/generate-learning-notes`
+- `/api/generate-node-material`
 - `/api/generate-knowledge-node-summary`
 - `/api/get-voice-clip`
 

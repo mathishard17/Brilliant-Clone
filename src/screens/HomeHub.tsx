@@ -325,6 +325,12 @@ export function HomeHub({ princessName }: HomeHubProps) {
     studentMemory,
   })
 
+  useEffect(() => {
+    if (!profile.aiEnabled && activeHomeHubPage === 'builder') {
+      setActiveHomeHubPage('board')
+    }
+  }, [activeHomeHubPage, profile.aiEnabled])
+
   function updatePage(nextPage: number) {
     const safePage = Math.min(Math.max(nextPage, 0), Math.max(pageCount - 1, 0))
     window.sessionStorage.setItem(HOME_HUB_PAGE_KEY, String(safePage))
@@ -441,7 +447,7 @@ export function HomeHub({ princessName }: HomeHubProps) {
         setThemeMessage(
           source === 'generated'
             ? `Using ${resolvedThemePack.themeName}.`
-            : getThemeFallbackMessage(resolvedThemePack.themeName, debugError),
+            : `${getThemeFallbackMessage(resolvedThemePack.themeName, debugError)} Your custom idea is saved so you can retry it later.`,
         )
         return
       }
@@ -516,18 +522,7 @@ export function HomeHub({ princessName }: HomeHubProps) {
     .map((lesson) => getKnowledgeNodeById(lesson.graphNodeId).label)
 
   function getGraphLessonStats(lesson: KnowledgeGraphLesson) {
-    const definition = LESSON_DEFINITIONS.find((entry) => entry.id === lesson.lessonId)
-    if (definition) return getLessonStats(definition)
-
-    return mergeLearningStats(getConceptStatsForLesson(studentMemory, lesson.lessonId), {
-      totalAttempts: 0,
-      correctAttempts: 0,
-      incorrectAttempts: 0,
-      hintsRequested: 0,
-      accuracy: null,
-      weightedScore: 0,
-      questionCount: 0,
-    })
+    return getLessonStats(LESSON_DEFINITIONS.find((entry) => entry.id === lesson.lessonId) ?? LESSON_DEFINITIONS[0])
   }
 
   function createRecommendation(

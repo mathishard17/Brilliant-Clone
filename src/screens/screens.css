@@ -536,16 +536,6 @@
   color: color-mix(in srgb, var(--theme-accent, #22d3ee) 74%, #ffffff);
 }
 
-.lesson-screen--themed .home-hub__theme-message,
-.lesson-screen--themed .home-hub__pagination,
-.lesson-screen--themed .home-hub__lesson-desc {
-  color: var(--theme-hint-text, var(--color-text-muted));
-}
-
-.lesson-screen--themed .home-hub__lesson-title {
-  color: var(--theme-accent, var(--color-primary));
-}
-
 .home-hub.lesson-screen--themed .home-hub__lesson-card .home-hub__lesson-title {
   color: color-mix(in srgb, var(--node-neon, var(--theme-accent, #22d3ee)) 76%, #ffffff);
 }
@@ -1571,10 +1561,12 @@
   color: #ffffff;
   font-size: 0.9rem;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .schema-builder__graph-tooltip span {
-  width: max-content;
+  width: fit-content;
+  max-width: 100%;
   padding: 0.12rem 0.45rem;
   color: #bbf7d0;
   background: rgb(22 101 52 / 0.62);
@@ -1588,6 +1580,7 @@
   color: #bbf7d0;
   font-size: 0.74rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .schema-builder__selected-stack,
@@ -2222,10 +2215,12 @@
   font-size: 0.95rem;
   font-weight: 900;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .knowledge-node__tooltip-status {
-  width: max-content;
+  width: fit-content;
+  max-width: 100%;
   padding: 0.1rem 0.45rem;
   color: #dcfce7;
   background: rgb(34 197 94 / 0.12);
@@ -2266,6 +2261,7 @@
   color: #cbd5e1;
   font-size: 0.78rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .knowledge-node__tooltip-lesson {
@@ -2580,6 +2576,11 @@
   .knowledge-graph__detail {
     grid-template-columns: auto 1fr auto;
     align-items: center;
+  }
+
+  .knowledge-graph__detail--compact {
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .knowledge-graph__open-btn {

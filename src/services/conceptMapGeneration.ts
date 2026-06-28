@@ -57,7 +57,7 @@ function isGeneratedRelationship(value: unknown): value is GeneratedConceptRelat
   )
 }
 
-export function isGeneratedConceptMap(value: unknown): value is GeneratedConceptMap {
+function isGeneratedConceptMap(value: unknown): value is GeneratedConceptMap {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const conceptMap = value as Partial<GeneratedConceptMap>
   if (

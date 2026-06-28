@@ -1,6 +1,6 @@
 # Project Progress
 
-Concise milestone log for **Counting Adventures**.
+Concise milestone log for **SCHEMA**.
 
 ## MVP Baseline
 
@@ -60,7 +60,7 @@ Concise milestone log for **Counting Adventures**.
 - Added lesson-local theme bridges for Lessons 2–5 while shared per-lesson theme-pack contracts remain future work.
 - Expanded the shared theme visual contract with optional UI state tokens for error, warning, status, selected, disabled, input/focus, diagram, spinner, meter, neutral, and dialog-like surfaces.
 - Mapped those theme tokens into CSS variables and applied them to shared feedback, voice status, inputs, selected states, clickthrough dots, Lesson 4 spinners, and Lesson 5 tray/meter/spinner review surfaces.
-- Current AI roadmap status: OpenAI-backed hints, graph Feedback summaries, and generated theme packs now run through Vercel-style API routes in `api/`. Manual AI smoke validation and browser testing are still needed before demo/deploy.
+- Current AI roadmap status: OpenAI-backed hints, answer feedback, graph feedback summaries, learning notes, generated theme packs, generated concept maps, and generated node material now run through Vercel-style API routes in `api/`. Manual AI smoke validation and browser testing are still needed before demo/deploy.
 
 ## Voice, Sound, And Theme Review Loop
 
@@ -129,6 +129,14 @@ Concise milestone log for **Counting Adventures**.
 - Standardized Lesson 1 create-outfit wording so instructions, prompts, voice clips, fallback themes, and graph copy say "outfits" instead of "looks/styles" for the outfit-building flow.
 - Changed Lessons 1, 2, 3, and 5 so visual experiments are optional scaffolds: correct typed answers unlock Continue without requiring all outfits, orderings, bags, tray entries, or repaint states first. Lesson 4 already followed this rule.
 - Polished Lesson 1 non-dress character rendering by simplifying the casual shirt body and removing unnecessary decorative torso shapes.
+- Added a generated Schema Maker entry from Home Hub: learners can enter a topic, audience, and goal/background notes, then generate a draft schema map.
+- Added Vercel-style API routes and client services for generated concept maps and generated node material, with typed validation and fallback handling.
+- Added assumed-prerequisite support so learner background notes can be displayed without forcing every schema to start from complete basics.
+- Added generated schema draft conversion with prerequisite edges, connection reasons, warnings, map positions, and a cap of two starter nodes.
+- Added an interactive green 3D generated-schema graph with drag/zoom/reset controls, brighter node glow, starter/non-starter visual states, and hover/focus explanatory tooltips.
+- Refined Schema Maker layout so the generator becomes a generated-node sidebar after generation, with a low-key back-to-generator control and full-width selected-node details/material.
+- Restored/synced profile-level AI on/off behavior after merging `schema-maker` onto latest `main`; generated themes and generated schemas respect the AI toggle.
+- Synced `schema-maker` with latest `main`, resolved schema-maker conflicts, removed stale Schema Builder CSS, and verified the merged branch with `npm run build`.
 
 ## Current Status
 
@@ -139,7 +147,9 @@ Concise milestone log for **Counting Adventures**.
 - Knowledge Graph node Feedback is present locally, gated to in-progress/completed/mastered nodes, and keyed by node, status, progress ratio, tried contexts, lesson title, and active theme.
 - OpenAI-personalized answer feedback is present across the main scored Lesson 1-5 challenge blocks; requests include the problem, learner answer, correct answer, concept, and local context, with fallback copy if the API is unavailable.
 - Home Hub Learning Notes now include an AI-written progress summary and a visible Recommended next message derived from the knowledge graph state.
-- Latest `npm run build` passes after the personalized feedback, AI Learning Notes, voice replay, and local API route updates.
+- Home Hub now includes a generated Schema Maker with a 3D generated graph preview, generated-node sidebar, selected-node inspection, assumed prerequisites, and lazy generated node material.
+- Profile-level AI On/Off is present in the app header and gates AI schema/theme generation.
+- Latest `npm run build` passes after the schema-maker/main sync, generated schema graph, personalized feedback, AI Learning Notes, voice replay, and local API route updates.
 - Vite still reports the existing large chunk warning.
 - Live Firebase site may need redeploy to include recent curriculum and theme changes.
 - Voice work has Lesson 1-5 UI integration and a Cartesia-backed Vercel API route; stable default-theme narration MP3s cache globally in Firebase Storage, custom/generated-theme narration caches by user, and feedback clips speak the displayed AI feedback text with a replay button instead of Storage caching. Production voice still needs deploy QA and selected production voice IDs.
@@ -156,8 +166,11 @@ Concise milestone log for **Counting Adventures**.
 - Manually smoke-test Voice Off/Voice On across Lessons 1–5, including captions, autoplay gating, fallback audio, feedback text-before-voice ordering, and replay.
 - Manually smoke-test AI answer feedback on at least one wrong answer in each lesson and verify fallback copy remains usable when OpenAI is unavailable.
 - Manually smoke-test Learning Notes after a few attempts to verify the AI summary and Recommended next message update sensibly.
+- Manually smoke-test Schema Maker generation with at least one topic, including assumed prerequisites, two starter nodes, graph drag/zoom, node selection, node material generation, and back-to-generator behavior.
+- Manually smoke-test AI Off behavior for generated themes and generated schemas.
 - Decide whether to add dedicated `Lesson2ThemePack`, `Lesson3ThemePack`, `Lesson4ThemePack`, and `Lesson5ThemePack` contracts instead of deriving later lessons from the Lesson 1 theme pack.
 - Manually smoke-test the new Home Hub graph on phone and iPad widths with incomplete, in-progress, completed, and mastered lesson profiles.
 - Manually smoke-test Knowledge Graph Feedback opening, cached reuse, and automatic regeneration after progress changes.
 - Add a Vitest suite for core logic and registry integrity.
 - Run `review-lesson` before major demos.
+

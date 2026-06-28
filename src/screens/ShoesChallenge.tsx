@@ -158,7 +158,7 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
         label="Listen to this part"
       />
       <p className="endurance-tip">
-        Endurance boost: play with the closet before answering. Each new variation you find helps your Endurance grow.
+        Explore tip: play with the closet before answering.
       </p>
 
       <div className="lesson-screen__play-area">
@@ -182,6 +182,7 @@ export function ShoesChallenge({ princessName }: ShoesChallengeProps) {
         heading={copy.logHeading}
         emptyMessage={copy.logEmpty}
         counterLabel={copy.logCounter}
+        revealCounterTotal={isSolved}
         itemLabels={itemLabels}
         itemMotifs={itemMotifs}
         motifColor={motif.primary}

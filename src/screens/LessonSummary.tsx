@@ -7,7 +7,7 @@ import { VoiceButton } from '../components/VoiceButton'
 import { ChallengeQuestion } from '../components/ChallengeQuestion'
 import { FeedbackBanner } from '../components/FeedbackBanner'
 import { HintButton } from '../components/HintButton'
-import { RetrievalPracticeSet, type RetrievalPracticeProblem } from '../components/RetrievalPracticeSet'
+import { RetrievalPracticeSet, type RetrievalPracticeProblem, type RetrievalPracticeState } from '../components/RetrievalPracticeSet'
 import {
   screen4MiniLesson,
   type Screen4MiniLessonPage,
@@ -40,6 +40,7 @@ interface LessonSummaryState {
   practiceSubmitted: boolean
   practiceCorrect: boolean | null
   retrievalPracticeSolved: boolean
+  retrievalPracticeState?: RetrievalPracticeState
   practiceWrongAttempts: number
   practiceAttemptedAnswers: string[]
 }
@@ -51,6 +52,7 @@ const SUMMARY_DEFAULT_STATE: LessonSummaryState = {
   practiceSubmitted: false,
   practiceCorrect: null,
   retrievalPracticeSolved: false,
+  retrievalPracticeState: undefined,
   practiceWrongAttempts: 0,
   practiceAttemptedAnswers: [],
 }
@@ -90,7 +92,7 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
           id: LESSON_1_RETRIEVAL_PAGE_ID,
           type: 'explanation' as const,
           body: '',
-          nextLabel: 'Finish Lesson Complete! 🎉',
+          nextLabel: 'Start practice →',
         },
       ],
     }
@@ -120,10 +122,12 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
   const practiceEquation = `4 ${crownsLabel} × 5 ${dressesLabel} × 2 ${shoesLabel} = 40 ${copy.lookNamePlural}`
 
   function setSummaryState(partial: Partial<LessonSummaryState>) {
+    const latestSummaryState = activeLesson.sectionState[SUMMARY_SECTION_ID] as Partial<LessonSummaryState> | undefined
     void updateLesson({
       sectionState: {
         [SUMMARY_SECTION_ID]: {
-          ...summaryState,
+          ...SUMMARY_DEFAULT_STATE,
+          ...latestSummaryState,
           ...partial,
         },
       },
@@ -262,7 +266,7 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
         onComplete={handleFinish}
         backLabel="← Back"
         nextLabel="Next →"
-        completeLabel="Finish Lesson Complete! 🎉"
+        completeLabel="Finish Lesson"
         navClassName="lesson-summary__step-nav"
         showDots
         showNext={(page) => {
@@ -357,6 +361,8 @@ export function LessonSummary({ princessName }: LessonSummaryProps) {
             return (
               <RetrievalPracticeSet
                 initiallySolved={retrievalPracticeSolved}
+                initialState={summaryState.retrievalPracticeState}
+                onStateChange={(retrievalPracticeState) => setSummaryState({ retrievalPracticeState })}
                 onSolvedChange={(solved) => {
                   if (solved && !retrievalPracticeSolved) {
                     setSummaryState({ retrievalPracticeSolved: true })
