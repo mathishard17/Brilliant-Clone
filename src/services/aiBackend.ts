@@ -18,7 +18,7 @@ export async function postAiEndpoint<TRequest, TResponse>(
     } catch {
       // Keep the original status-only message if the server did not return JSON.
     }
-    throw new Error(`AI endpoint failed with ${response.status}${detail}`)
+    throw new Error(`AI endpoint ${path} failed with ${response.status}${detail}`)
   }
 
   return response.json() as Promise<TResponse>

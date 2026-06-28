@@ -28,6 +28,8 @@ export interface StudentMemoryRecentEvent {
   conceptKey: string
   label: string
   outcome?: StudentMemoryOutcome
+  learnerAnswer?: string
+  correctAnswer?: string
   misconception?: string
   createdAt: string
 }
@@ -56,6 +58,7 @@ export interface UserProfile {
   themePreference: ThemePreference
   customThemeIdea?: string
   themePacks: ThemePackMap
+  aiEnabled: boolean
   voiceEnabled: boolean
   appearance?: CharacterAppearance
   studentMemory: StudentMemory

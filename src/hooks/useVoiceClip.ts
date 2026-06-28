@@ -85,8 +85,7 @@ export function useVoiceClip(request: VoiceClipRequest) {
     user?.uid,
   ])
 
-  const play = useCallback(async () => {
-    const nextResponse = await loadClip()
+  const playResponse = useCallback((nextResponse: VoiceClipResponse) => {
     if (!nextResponse.audioUrl) {
       const debugCopy = import.meta.env.DEV && nextResponse.debugError ? ` Debug: ${nextResponse.debugError}` : ''
       setState((current) => ({
@@ -132,7 +131,16 @@ export function useVoiceClip(request: VoiceClipRequest) {
 
     try {
       setState((current) => ({ ...current, requestKey, error: null, playing: true }))
-      await audio.play()
+      void audio.play().catch(() => {
+        releaseExclusiveAudio(audioSession)
+        if (audioSessionRef.current === audioSession) audioSessionRef.current = null
+        setState((current) => ({
+          ...current,
+          requestKey,
+          error: 'Press play again if your browser blocked audio.',
+          playing: false,
+        }))
+      })
     } catch {
       releaseExclusiveAudio(audioSession)
       if (audioSessionRef.current === audioSession) audioSessionRef.current = null
@@ -143,7 +151,20 @@ export function useVoiceClip(request: VoiceClipRequest) {
         playing: false,
       }))
     }
-  }, [loadClip, requestKey])
+  }, [requestKey])
+
+  const play = useCallback(async () => {
+    const cachedResponse = responseRef.current?.requestKey === requestKey
+      ? responseRef.current.response
+      : null
+    if (cachedResponse) {
+      playResponse(cachedResponse)
+      return
+    }
+
+    const nextResponse = await loadClip()
+    playResponse(nextResponse)
+  }, [loadClip, playResponse, requestKey])
 
   const pause = useCallback(() => {
     audioRef.current?.pause()

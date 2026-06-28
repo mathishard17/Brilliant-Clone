@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "firebase:login": "firebase login",
     "firebase:init": "firebase init",
-    "firebase:deploy": "npm run build && firebase deploy",
+    "firebase:deploy": "npm run build && firebase deploy --only hosting,firestore:rules,firestore:indexes",
     "firebase:deploy:hosting": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {

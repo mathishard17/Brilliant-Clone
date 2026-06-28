@@ -10,7 +10,6 @@ interface KnowledgeNodeCardProps {
   isRecommended?: boolean
   projectedPosition?: { x: number; y: number; scale: number; z: number }
   onSelect: () => void
-  onPreview: () => void
 }
 
 const STATUS_LABELS: Record<NodeMasteryState['status'], string> = {
@@ -35,7 +34,6 @@ export function KnowledgeNodeCard({
   isRecommended = false,
   projectedPosition,
   onSelect,
-  onPreview,
 }: KnowledgeNodeCardProps) {
   const nodeScale = projectedPosition?.scale ?? 1
   const tooltipScale = 1 / nodeScale
@@ -61,8 +59,8 @@ export function KnowledgeNodeCard({
       className={`knowledge-node knowledge-node--${state.status}${isSelected ? ' knowledge-node--selected' : ''}${isRecommended ? ' knowledge-node--recommended' : ''}`}
       style={cardStyle}
       onClick={onSelect}
-      onFocus={onPreview}
-      onMouseEnter={onPreview}
+      onFocus={onSelect}
+      onMouseEnter={onSelect}
       aria-pressed={isSelected}
       aria-label={`${node.label}. ${statusLabel}. ${node.description}`}
     >

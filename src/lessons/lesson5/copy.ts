@@ -2,7 +2,6 @@ import type {
   ChallengeMiniLessonPage,
   ClickthroughMiniLesson,
   ExplanationMiniLessonPage,
-  InteractiveVisualizationKind,
 } from '../../types/lesson'
 
 export type Lesson5Player = 'princess' | 'dragon' | 'knight' | 'none'
@@ -14,11 +13,9 @@ export interface Lesson5SpinnerSpace {
   winner: Lesson5Player
 }
 
-interface Lesson5VisualizationSection {
-  id: string
-  heading: string
+interface Lesson5SectionCopy {
+  heading?: string
   body: (princessName: string) => string
-  visualization: InteractiveVisualizationKind
 }
 
 export type Lesson5ChallengePage = ChallengeMiniLessonPage<number>
@@ -49,47 +46,37 @@ export const sixSpaceFairSpinnerSpaces: Lesson5SpinnerSpace[] = [
 
 export const lesson5Sections = {
   sampleSpaceIntro: {
-    id: 'lesson-5-sample-space-intro',
-    heading: '🎪 Royal Carnival Spinner',
     body: (princessName) =>
       `Welcome to the Royal Carnival, ${princessName}! The princess made a spinner game, but the dragon says, "Wait! Does everyone have the same chance to win?" You can tap equal spinner spaces to collect landing spots in the tray while you think.`,
-    visualization: 'carnival-spinner',
   },
   fairnessCheck: {
-    id: 'lesson-5-fairness-check',
     heading: '⚖️ Fair or Unfair?',
     body: () =>
       'Now the rules are clear: **Princess wins on Crown**, **Dragon wins on Dragon**, and **Jewel means no one wins**. Compare the winning spaces to decide if the game is fair.',
-    visualization: 'carnival-spinner',
   },
   fairSpinnerBuilder: {
-    id: 'lesson-5-fair-spinner-builder',
-    heading: '🎨 Fix the Carnival Game',
     body: (princessName) =>
       `${princessName}, this booth starts with **Crown, Crown, Crown, Dragon**. Use the builder to test a repaint if it helps. How can Princess and Dragon get the same chance to win?`,
-    visualization: 'fair-spinner-builder',
   },
   royalReview: {
-    id: 'lesson-5-royal-review',
     heading: '🏰 Royal Review',
     body: () =>
       'A sample space can come from more than one spinner. Two tiny royal spinners make a little grid of everything that could happen.',
-    visualization: 'two-spinner-sample-space',
   },
-} satisfies Record<string, Lesson5VisualizationSection>
+} satisfies Record<string, Lesson5SectionCopy>
 
 export function challenge1(princessName: string): Lesson5ChallengePage {
   return {
     id: 'lesson-5-count-sample-space',
     type: 'challenge',
     prompt:
-      'The Royal Carnival spinner has 4 equal spaces: Crown, Crown, Dragon, and Jewel. How many total possible landing spaces are in the sample space?',
+      'A friend lists this spinner sample space as **Crown, Dragon, Jewel** because Crown repeats. The real spinner is **Crown, Crown, Dragon, Jewel**. How many outcomes should the corrected sample-space list have?',
     answer: 4,
     feedback: {
-      correct: `Royal work, ${princessName}! The sample space has **4 outcomes** because the spinner has **4 equal spaces**.`,
-      incorrect: 'Not quite. Count the spinner spaces one by one, even when two spaces have the same picture.',
-      tryAgain: 'Try again! How many equal spaces can the spinner land on?',
-      solution: 'Solution: **Crown, Crown, Dragon, Jewel** makes **4 possible outcomes**.',
+      correct: `Royal work, ${princessName}! The corrected sample space has **4 outcomes** because both Crown spaces can happen.`,
+      incorrect: 'Not quite. Repeated pictures still count when they are on separate spinner spaces.',
+      tryAgain: 'Try again! Put the missing repeated Crown back into the list, then count every entry.',
+      solution: 'Solution: the corrected list is **Crown, Crown, Dragon, Jewel**, so there are **4 possible outcomes**.',
     },
   }
 }
@@ -150,7 +137,7 @@ function challenge5(): Lesson5ChallengePage {
     id: 'lesson-5-check-built-game',
     type: 'challenge',
     prompt:
-      'Your carnival builder has 6 equal spaces. You made 3 Star spaces for Princess and 3 Shield spaces for Knight. Is the game fair? Type **1** for fair or **2** for unfair.',
+      'Your carnival builder has 6 equal spaces: Star, Shield, Star, Shield, Star, Shield. Princess wins on Star, and Knight wins on Shield. Is the game fair? Type **1** for fair or **2** for unfair.',
     answer: 1,
     feedback: {
       correct: 'Yes! Princess has **3 winning spaces** and Knight has **3 winning spaces**, so they have the same chance.',
@@ -176,7 +163,6 @@ function challenge6(princessName: string): Lesson5ChallengePage {
       solution:
         'Solution: the sample space is **Crown+Crown**, **Crown+Dragon**, **Dragon+Crown**, **Dragon+Dragon**. Princess wins **2 outcomes** and Knight wins **2 outcomes**, so the game is **fair**.',
     },
-    nextLabel: 'Finish Lesson',
   }
 }
 
@@ -195,8 +181,7 @@ export function sampleSpaceMiniLesson(princessName: string): ClickthroughMiniLes
         id: 'duplicates-count',
         type: 'explanation',
         body:
-          'The spinner says **Crown, Crown, Dragon, Jewel**. Crown appears twice, and both Crown spaces count because the spinner can land on either one.',
-        equation: 'Crown 1 + Crown 2 + Dragon + Jewel = 4 outcomes',
+          'The spinner may show a matching picture on more than one space. Matching pictures on different spaces still count separately, so do not collapse them into one card.',
       },
       challenge2(princessName),
     ],

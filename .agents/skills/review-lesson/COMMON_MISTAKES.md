@@ -56,6 +56,10 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 - Introduce formal terms after concrete examples.
 - Avoid too many new terms in one section.
 - Be careful with large factorials, decimals, percentages, or formulas.
+- Do not make a challenge ask for a number that is already stated or directly visible, like "there are 4 spaces; how many spaces?" Ask the learner to correct a misconception, transfer the idea, compare cases, or decide what counts.
+- Do not show a live visual counter that can become the exact challenge answer before submission. Reveal exact totals after a correct answer, or use qualitative progress copy first.
+- Final/retrieval practice should not repeat the same parameters and answer the learner just solved. Change the numbers, ask a transfer question, or check a misconception.
+- Meters, trays, pair lists, and builder verdict banners must not reveal fair/unfair labels, exact counts, or match/no-match classifications before the learner answers.
 
 ### Plan Alignment
 
@@ -86,6 +90,7 @@ Use this as a quick review checklist for lesson QA. Add new items only when a pa
 - Decide whether local state is just practice or meaningful progress.
 - Consider persistence for discovered orderings, built spinners, sorted cards, or other work a student may expect to resume.
 - Challenge answers, correctness, wrong attempts, page index, and solved gates should usually persist when leaving and returning to a lesson.
+- Multi-problem practice gates should persist enough state that leaving mid-practice does not feel like progress was lost; a final `solved` boolean alone is usually not enough.
 - Visualized problems should save meaningful discovered/worked state, not just the final section number.
 - Returning home and re-entering a lesson is a required persistence test, not just page refresh.
 - Reset must clear saved `sectionState`; an empty reset object should not merge with old state.

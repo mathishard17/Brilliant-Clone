@@ -5,13 +5,16 @@ import { FeedbackBanner } from '../../components/FeedbackBanner'
 import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
+import { RetrievalPracticeSet } from '../../components/RetrievalPracticeSet'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import { useLesson } from '../../hooks/useLesson'
+import { useSectionState } from '../../hooks/useSectionState'
 import { LESSON_4_ID } from '../../types/lesson'
 import { lesson1ThemeStyle, resolveLesson1Theme } from '../../themes/themeResolver'
 import { playCompletionTada } from '../../utils/completionSound'
 import { getProfileLessonProgress } from '../../utils/lessonProgress'
+import { canRevealSolution } from '../../utils/solutionReveal'
 import {
   certainVisual,
   compareSpinnerVisual,
@@ -61,13 +64,35 @@ const prizeColors: Record<PrizeKind, string> = {
   sparkle: '#93c5fd',
 }
 
-const solutionRevealWrongAttempts = 2
+const lesson4RetrievalPracticeProblems = [
+  {
+    id: 'lesson-4-previous-counting-outcomes',
+    prompt:
+      'Outcome count: a spinner shows **Ruby, Ruby, Ruby, Star, Star, Crown, Dragon**. A friend says there are only 4 outcomes because there are 4 picture names. How many possible landing outcomes should the sample space count?',
+    answer: 7,
+    correctFeedback: 'Yes. The sample space counts each equal space, so repeated pictures still make **7** possible landings.',
+    tryAgainFeedback: 'Count every equal space, including repeated Ruby and Star spaces.',
+  },
+  {
+    id: 'lesson-4-current-favorable-spaces',
+    prompt:
+      'Favorable spaces: the spinner shows **Crown, Ruby, Crown, Star, Ruby, Dragon**. If Crown is the winning event, how many favorable outcomes are there?',
+    answer: 2,
+    correctFeedback: 'Right: only the **2 Crown spaces** are favorable for the Crown event.',
+    tryAgainFeedback: 'Favorable means the spaces that match the event you want. Count only Crown spaces.',
+  },
+]
 
 interface Lesson4ChoiceState {
   selectedAnswer: string | null
   attemptedAnswers: string[]
   wrongAttempts: number
   isCorrect: boolean
+}
+
+interface Lesson4FinaleState extends Record<string, unknown> {
+  retrievalPracticeSolved: boolean
+  showPracticePage: boolean
 }
 
 function isChallengePage(
@@ -118,7 +143,6 @@ function themeChoiceChallenge(challenge: ChoiceChallenge, flavor: Lesson4ThemeFl
     options: themedOptions,
     feedback: {
       correct: themePrizeText(challenge.feedback.correct, flavor),
-      incorrect: themePrizeText(challenge.feedback.incorrect, flavor),
       tryAgain: themePrizeText(challenge.feedback.tryAgain, flavor),
       solution: themePrizeText(challenge.feedback.solution, flavor),
     },
@@ -216,11 +240,11 @@ function hasSolvedChoice(
 function ChanceSpinner({
   visual,
   themeFlavor,
-  showCountSummary = true,
+  showCountSummary,
 }: {
   visual: SpinnerVisual
   themeFlavor: Lesson4ThemeFlavor
-  showCountSummary?: boolean
+  showCountSummary: boolean
 }) {
   const [selectedPrize, setSelectedPrize] = useState<PrizeKind>(
     visual.targetPrize ?? visual.spaces[0].prize,
@@ -282,7 +306,7 @@ function ChanceSpinner({
                 <button
                   key={space.id}
                   type="button"
-                  className={`chance-spinner__space chance-spinner__space--${space.prize}${isSelected ? ' chance-spinner__space--selected' : ''}${isLanded ? ' chance-spinner__space--landed' : ''}`}
+                  className={`chance-spinner__space${isSelected ? ' chance-spinner__space--selected' : ''}${isLanded ? ' chance-spinner__space--landed' : ''}`}
                   style={
                     {
                       '--chance-space-angle': `${angle}deg`,
@@ -376,8 +400,19 @@ function ChoiceChallengeCard({
   const [wrongAttempts, setWrongAttempts] = useState(savedChoiceState.wrongAttempts)
   const isCorrect = selectedAnswer === challenge.answer
   const showFeedback = selectedAnswer !== null
-  const shouldRevealSolution = wrongAttempts >= solutionRevealWrongAttempts
+  const conceptKey = `lesson-4-${challenge.id}`
+  const shouldRevealSolution = canRevealSolution({
+    memory: profile.studentMemory,
+    conceptKey,
+    wrongAttempts,
+  })
   const visualTheme = themeFlavor.visual
+  const submittedAnswer = attemptedAnswers[attemptedAnswers.length - 1] ?? selectedAnswer ?? ''
+  const feedbackSubmissionKey = [
+    attemptedAnswers.join(','),
+    wrongAttempts,
+    String(isCorrect),
+  ].join('|')
 
   function handleAnswer(answer: string) {
     if (attemptedAnswers.includes(answer)) {
@@ -406,7 +441,7 @@ function ChoiceChallengeCard({
     void recordStudentMemoryEvent({
       type: 'challengeAttempt',
       lessonId: LESSON_4_ID,
-      conceptKey: `lesson-4-${challenge.id}`,
+      conceptKey,
       label: 'Spinner chance',
       outcome: correct ? 'correct' : 'incorrect',
       learnerAnswer: answer,
@@ -452,7 +487,7 @@ function ChoiceChallengeCard({
 
       <HintButton
         lessonId={LESSON_4_ID}
-        conceptKey={`lesson-4-${challenge.id}`}
+        conceptKey={conceptKey}
         conceptLabel="Spinner chance"
         prompt={challenge.prompt}
         context="The learner is choosing which spinner outcome statement matches the visible winning spaces."
@@ -467,6 +502,17 @@ function ChoiceChallengeCard({
       {showFeedback && (
         <FeedbackBanner
           variant={isCorrect ? 'success' : 'error'}
+          submissionKey={feedbackSubmissionKey}
+          aiFeedback={{
+            lessonId: LESSON_4_ID,
+            conceptKey,
+            conceptLabel: 'Spinner chance',
+            problem: challenge.prompt,
+            learnerAnswer: submittedAnswer,
+            correctAnswer: challenge.answer,
+            attemptedAnswers,
+            context: 'The learner is choosing which spinner outcome statement matches the visible winning spaces.',
+          }}
           voiceCue={{
             correctClipKey: 'lesson4.feedback.correct',
             enabled: profile.voiceEnabled,
@@ -482,6 +528,7 @@ function ChoiceChallengeCard({
                 ? challenge.feedback.solution
                 : challenge.feedback.tryAgain
           }
+          solution={isCorrect ? challenge.feedback.solution : undefined}
         />
       )}
       {repeatMessage && <FeedbackBanner variant="info" message={repeatMessage} />}
@@ -769,7 +816,13 @@ export function Lesson4Finale() {
   const rubyDragonChallenge = themeChoiceChallenge(copy.rubyDragonChallenge, lesson4Flavor)
   const [solvedChallengeIds, setSolvedChallengeIds] = useState<string[]>([])
   const [finishing, setFinishing] = useState(false)
+  const [finaleState, setFinaleState] = useSectionState<Lesson4FinaleState>(
+    'lesson-4-finale',
+    { retrievalPracticeSolved: false, showPracticePage: false },
+  )
   const lessonCompleted = activeLesson.completed
+  const retrievalPracticeSolved = finaleState.retrievalPracticeSolved === true
+  const showPracticePage = finaleState.showPracticePage === true
   const crownSolved =
     lessonCompleted || hasSolvedChoice(activeLesson.sectionState, crownChallenge, solvedChallengeIds)
   const compareSolved =
@@ -791,40 +844,75 @@ export function Lesson4Finale() {
     }
   }
 
+  function setShowPracticePage(showPractice: boolean) {
+    setFinaleState({ showPracticePage: showPractice })
+  }
+
   return (
     <section className="lesson-screen lesson-screen--themed lesson-4" style={lesson4Style}>
-      <ScreenBackButton label="← Back" onClick={() => void updateScreen(4)} />
-      <h1>{copy.heading}</h1>
-      <LessonText text={copy.body} className="anchor-lesson__text" />
-      <ChanceSpinner
-        visual={getThemedSpinnerVisual(finaleVisual, lesson4Flavor)}
-        themeFlavor={lesson4Flavor}
-        showCountSummary={crownSolved && compareSolved}
-      />
-      <ChoiceChallengeCard
-        challenge={crownChallenge}
-        themeFlavor={lesson4Flavor}
-        onCorrect={() =>
-          setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, crownChallenge.id))
-        }
-      />
-      {crownSolved && (
-        <ChoiceChallengeCard
-          challenge={rubyDragonChallenge}
-          themeFlavor={lesson4Flavor}
-          onCorrect={() =>
-            setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, rubyDragonChallenge.id))
+      <ScreenBackButton
+        label={showPracticePage ? '← Back to Final Wheel' : '← Back'}
+        onClick={() => {
+          if (showPracticePage) {
+            setShowPracticePage(false)
+          } else {
+            void updateScreen(4)
           }
-        />
-      )}
-      {crownSolved && compareSolved && (
+        }}
+      />
+      <h1>{showPracticePage ? 'Practice' : copy.heading}</h1>
+      {showPracticePage ? (
         <>
-          <FeedbackBanner variant="info" message={copy.finalMessage} />
+          <LessonText text="Solve both practice problems to unlock the finish button." />
+          <RetrievalPracticeSet
+            initiallySolved={retrievalPracticeSolved}
+            onSolvedChange={(solved) => {
+              if (solved && !retrievalPracticeSolved) {
+                setFinaleState({ retrievalPracticeSolved: true })
+              }
+            }}
+            problems={lesson4RetrievalPracticeProblems}
+          />
           <LessonButton
             label={lessonCompleted ? 'Return to Academy' : finishing ? 'Saving...' : 'Finish Lesson'}
             onClick={handleFinish}
-            disabled={finishing}
+            disabled={!retrievalPracticeSolved || finishing}
           />
+        </>
+      ) : (
+        <>
+          <LessonText text={copy.body} className="anchor-lesson__text" />
+          <ChanceSpinner
+            visual={getThemedSpinnerVisual(finaleVisual, lesson4Flavor)}
+            themeFlavor={lesson4Flavor}
+            showCountSummary={crownSolved && compareSolved}
+          />
+          <ChoiceChallengeCard
+            challenge={crownChallenge}
+            themeFlavor={lesson4Flavor}
+            onCorrect={() =>
+              setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, crownChallenge.id))
+            }
+          />
+          {crownSolved && (
+            <ChoiceChallengeCard
+              challenge={rubyDragonChallenge}
+              themeFlavor={lesson4Flavor}
+              onCorrect={() =>
+                setSolvedChallengeIds((ids) => addSolvedChallengeId(ids, rubyDragonChallenge.id))
+              }
+            />
+          )}
+          {crownSolved && compareSolved && (
+            <>
+              <FeedbackBanner variant="info" message={copy.finalMessage} />
+              <LessonButton
+                label={lessonCompleted && retrievalPracticeSolved ? 'Return to Academy' : 'Practice'}
+                onClick={lessonCompleted && retrievalPracticeSolved ? handleFinish : () => setShowPracticePage(true)}
+                disabled={finishing}
+              />
+            </>
+          )}
         </>
       )}
     </section>

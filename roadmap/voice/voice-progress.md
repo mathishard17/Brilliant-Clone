@@ -11,12 +11,12 @@ This file is a handoff for agents adding voice to later lessons. Lesson 1 is the
 - Generic correct/try-again feedback audio on challenge feedback banners.
 - A non-voice completion tada sound when the learner clicks a final lesson finish button.
 - Optional AI-generated theme-specific voice scripts in the saved theme pack.
-- Client and Firebase Functions clip catalogs kept in sync.
-- Cartesia generation through the callable function, with Cloud Storage caching for generated MP3s.
+- Client and API-route clip catalogs kept in sync.
+- Cartesia generation through `/api/get-voice-clip`, with optional Firebase Storage caching for eligible generated MP3s when Firebase Admin credentials are configured.
 
 ## Lesson 1 Clip Keys
 
-Lesson 1 clip keys live in `src/voice/voiceClips.ts` and must also be mirrored in `functions/index.js`.
+Lesson 1 clip keys live in `src/voice/voiceClips.ts` and must also be mirrored in the server `VOICE_CLIPS` catalog in `api/get-voice-clip.js`.
 
 - `lesson1.screen1.welcome`: welcome/closet intro. Uses `safeBeforeAnswer`. Autoplays on the first dressing-room page when Voice is on.
 - `lesson1.screen2.anchorIntro`: Anchor Trick intro. Uses `safeBeforeAnswer`. Autoplays on the Anchor Trick page.
@@ -29,7 +29,7 @@ Lesson 1 clip keys live in `src/voice/voiceClips.ts` and must also be mirrored i
 
 ## Lesson 2-5 Rollout Keys
 
-Lessons 2-5 follow the same shared-catalog rule: client clip keys in `src/voice/voiceClips.ts` must be mirrored in `functions/index.js`.
+Lessons 2-5 follow the same shared-catalog rule: client clip keys in `src/voice/voiceClips.ts` must be mirrored in `api/get-voice-clip.js`.
 
 - Lesson 2: `lesson2.screen1.arrangementsIntro`, `lesson2.screen2.restrictionIntro`, `lesson2.feedback.correct`, `lesson2.feedback.tryAgain`.
 - Lesson 3: `lesson3.screen1.combinationsIntro`, `lesson3.screen2.duplicatesIntro`, `lesson3.feedback.correct`, `lesson3.feedback.tryAgain`.
@@ -111,7 +111,7 @@ voice: {
 
 The clip key is still code-owned. A generated theme may only provide `text` and optional `caption` for existing keys in `src/voice/voiceClips.ts`.
 
-Custom themes are generated server-side by the `generateCustomTheme` Firebase callable using `OPENAI_API_KEY`. OpenAI only writes the data-only theme pack and optional voice scripts; Cartesia remains responsible for turning validated voice scripts into audio.
+Custom themes are generated server-side by the `/api/generate-custom-theme` route using `OPENAI_API_KEY`. OpenAI only writes the data-only theme pack and optional voice scripts; Cartesia remains responsible for turning validated voice scripts into audio.
 
 Client behavior:
 
@@ -122,9 +122,9 @@ Client behavior:
 
 Server behavior:
 
-- The callable reads the signed-in user's saved `themePacks[LESSON_1_ID].voice` from Firestore.
-- The callable does not trust arbitrary client-provided script text.
-- The callable validates the themed script again before Cartesia generation.
+- The API route reads the signed-in user's saved `themePacks[LESSON_1_ID].voice` from Firestore.
+- The API route does not trust arbitrary client-provided script text.
+- The API route validates the themed script again before Cartesia generation.
 - Cached MP3s are still stored by provider, theme preference, lesson ID, clip key, and script hash.
 
 ## Non-Voice Finish Tada
@@ -144,9 +144,9 @@ This is wired for the final finish action in Lessons 1-5. Future lessons should 
 
 ## Backend Mirror Requirement
 
-Every new client clip in `src/voice/voiceClips.ts` must also be added to the `VOICE_CLIPS` object in `functions/index.js`. If the client knows a clip but the callable does not, the emulator or deployed function will reject the request.
+Every new client clip in `src/voice/voiceClips.ts` must also be added to the `VOICE_CLIPS` object in `api/get-voice-clip.js`. If the client knows a clip but the API route does not, the local middleware or deployed route will reject the request.
 
-After changing `functions/index.js`, restart the Functions emulator if it is already running.
+After changing `api/get-voice-clip.js`, restart the local dev server if it is already running.
 
 ## Safety Rules To Copy
 
@@ -165,14 +165,14 @@ After changing `functions/index.js`, restart the Functions emulator if it is alr
 2. Add 1-3 safe instructional clips for the lesson.
 3. Add one `feedback.correct` clip with `postCorrect`.
 4. Add one `feedback.tryAgain` clip with `safeBeforeAnswer`.
-5. Mirror all new clip definitions in `functions/index.js`.
+5. Mirror all new clip definitions in `api/get-voice-clip.js`.
 6. Add `VoiceButton` to the most useful instruction screens.
 7. Add `voiceCue` to success/error `FeedbackBanner` instances.
 8. If the clip should be theme-scriptable, add it to the AI theme generation prompt's `voice` object.
 9. Add `playCompletionTada()` to the final lesson finish handler if the lesson does not already have it.
-10. Run `npm --prefix functions run lint`, `npm run lint`, and `npm run build`.
+10. Run `npm run lint` and `npm run build`.
 11. Manually smoke-test with Voice Off and Voice On.
-12. If using the emulator, restart Functions after backend catalog changes.
+12. Restart the local dev server after backend catalog changes if it is already running.
 
 ## Manual QA Checklist
 

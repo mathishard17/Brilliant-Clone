@@ -581,10 +581,13 @@ label {
   font-weight: 600;
 }
 
+.app-header__ai-btn,
 .app-header__voice-btn {
   font-weight: 700;
 }
 
+.app-header__ai-btn--on,
+.app-shell--themed .app-header__ai-btn--on,
 .app-header__voice-btn--on,
 .app-shell--themed .app-header__voice-btn--on {
   background: var(--theme-accent, var(--color-royal-purple));

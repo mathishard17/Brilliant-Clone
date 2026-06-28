@@ -3,9 +3,13 @@ import react from '@vitejs/plugin-react'
 import type { IncomingMessage } from 'node:http'
 
 const apiRoutes: Record<string, string> = {
+  '/api/generate-answer-feedback': './api/generate-answer-feedback.js',
   '/api/generate-ai-hint': './api/generate-ai-hint.js',
+  '/api/generate-concept-map': './api/generate-concept-map.js',
   '/api/generate-custom-theme': './api/generate-custom-theme.js',
   '/api/generate-knowledge-node-summary': './api/generate-knowledge-node-summary.js',
+  '/api/generate-learning-notes': './api/generate-learning-notes.js',
+  '/api/generate-node-material': './api/generate-node-material.js',
   '/api/get-voice-clip': './api/get-voice-clip.js',
 }
 

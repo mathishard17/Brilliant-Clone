@@ -64,7 +64,7 @@ Integrator-only work:
 - shared types
 - registry changes
 - Firestore profile shape
-- Firebase Functions
+- Vercel-style API routes
 - theme validation
 - global CSS tokens
 - final conflict resolution

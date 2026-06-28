@@ -33,7 +33,7 @@ export interface ChallengeMiniLessonPage<Answer = number> extends MiniLessonPage
   inputMode?: 'numeric' | 'text'
   feedback?: {
     correct: string
-    incorrect: string
+    incorrect?: string
     tryAgain?: string
     solution?: string
   }
@@ -58,10 +58,6 @@ export type InteractiveVisualizationKind =
   | 'marble-permutations'
   | 'restricted-jewel-permutations'
   | 'identical-jewel-permutations'
-  | 'treasure-bag-combinations'
-  | 'duplicate-treasure-bags'
-  | 'combination-shortcut'
-  | 'combination-sort'
   | 'carnival-spinner'
   | 'fair-spinner-builder'
   | 'two-spinner-sample-space'

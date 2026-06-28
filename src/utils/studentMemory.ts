@@ -18,6 +18,7 @@ export interface StudentMemoryEvent {
   outcome?: StudentMemoryOutcome
   learnerAnswer?: string
   correctAnswer?: string
+  misconception?: string
 }
 
 export interface StudentMemoryHintSummary {
@@ -40,6 +41,10 @@ export interface StudentMemoryStats {
   incorrectAttempts: number
   hintsRequested: number
   accuracy: number | null
+  /** Sum of per-question retry credit: 1, 0.5, 0.25, ... */
+  weightedScore?: number
+  /** Number of questions represented by the weighted score. */
+  questionCount?: number
 }
 
 export function createDefaultStudentMemory(): StudentMemory {
@@ -119,6 +124,8 @@ function parseRecentEvent(value: unknown): StudentMemoryRecentEvent | null {
     conceptKey,
     label,
     outcome,
+    learnerAnswer: safeString(event.learnerAnswer, 80) || undefined,
+    correctAnswer: safeString(event.correctAnswer, 80) || undefined,
     misconception: safeString(event.misconception, 120) || undefined,
     createdAt,
   }
@@ -155,6 +162,9 @@ export function parseStudentMemory(value: unknown): StudentMemory {
 }
 
 function inferMisconception(event: StudentMemoryEvent): string | undefined {
+  if (typeof event.misconception === 'string' && event.misconception.trim().length > 0) {
+    return event.misconception.trim().slice(0, 120)
+  }
   if (event.type !== 'challengeAttempt' || event.outcome !== 'incorrect') return undefined
   const answer = Number(event.learnerAnswer)
   const correct = Number(event.correctAnswer)
@@ -172,19 +182,60 @@ function addLabel(values: string[], label: string) {
   return [label, ...withoutLabel(values, label)].slice(0, MAX_MEMORY_LABELS)
 }
 
-function summarizeConceptCounters(concepts: Record<string, StudentMemoryConcept>) {
+function normalizeAnswerText(value: string | undefined) {
+  const trimmed = value?.trim()
+  if (!trimmed) return ''
+  const numeric = Number(trimmed)
+  return Number.isFinite(numeric) ? String(numeric) : trimmed.toLowerCase()
+}
+
+function getFalseNegativeCounts(memory: Pick<StudentMemory, 'recentEvents'>) {
+  return memory.recentEvents.reduce<Record<string, number>>((counts, event) => {
+    if (
+      event.type !== 'challengeAttempt' ||
+      event.outcome !== 'incorrect' ||
+      !event.learnerAnswer ||
+      !event.correctAnswer ||
+      normalizeAnswerText(event.learnerAnswer) !== normalizeAnswerText(event.correctAnswer)
+    ) {
+      return counts
+    }
+
+    counts[event.conceptKey] = (counts[event.conceptKey] ?? 0) + 1
+    return counts
+  }, {})
+}
+
+function summarizeConceptCounters(
+  concepts: Record<string, StudentMemoryConcept>,
+  memory?: Pick<StudentMemory, 'recentEvents'>,
+) {
+  const falseNegativeCounts = memory ? getFalseNegativeCounts(memory) : {}
   return Object.values(concepts).reduce(
-    (totals, concept) => ({
-      totalAttempts: totals.totalAttempts + concept.attempts,
-      correctAttempts: totals.correctAttempts + concept.correct,
-      incorrectAttempts: totals.incorrectAttempts + concept.incorrect,
-      hintsRequested: totals.hintsRequested + concept.hintsRequested,
-    }),
+    (totals, concept) => {
+      const falseNegatives = Math.min(concept.incorrect, falseNegativeCounts[concept.conceptKey] ?? 0)
+      const correctAttempts = concept.correct + falseNegatives
+      const incorrectAttempts = concept.incorrect - falseNegatives
+      const questionCount = correctAttempts > 0 ? correctAttempts : incorrectAttempts > 0 ? 1 : 0
+      const weightedScore = correctAttempts > 0
+        ? Math.max(0, correctAttempts - 1) + 0.5 ** incorrectAttempts
+        : 0
+      return {
+        totalAttempts: totals.totalAttempts + concept.attempts,
+        correctAttempts: totals.correctAttempts + correctAttempts,
+        incorrectAttempts: totals.incorrectAttempts + incorrectAttempts,
+        hintsRequested: totals.hintsRequested + concept.hintsRequested,
+        weightedScore: totals.weightedScore + weightedScore,
+        questionCount: totals.questionCount + questionCount,
+      }
+    },
     {
       totalAttempts: 0,
       correctAttempts: 0,
       incorrectAttempts: 0,
       hintsRequested: 0,
+      weightedScore: 0,
+      questionCount: 0,
     },
   )
 }
@@ -250,6 +301,8 @@ export function recordStudentMemoryEvent(memory: StudentMemory, event: StudentMe
     conceptKey,
     label,
     outcome: event.outcome,
+    learnerAnswer: safeString(event.learnerAnswer, 80) || undefined,
+    correctAnswer: safeString(event.correctAnswer, 80) || undefined,
     misconception,
     createdAt: now,
   }
@@ -300,7 +353,10 @@ export function clearStudentMemoryForLesson(memory: StudentMemory, lessonId: str
 
   return {
     ...memory,
-    ...counters,
+    totalAttempts: counters.totalAttempts,
+    correctAttempts: counters.correctAttempts,
+    incorrectAttempts: counters.incorrectAttempts,
+    hintsRequested: counters.hintsRequested,
     currentStreak: recentEvents.length === memory.recentEvents.length ? memory.currentStreak : 0,
     strengths: withoutRemovedLabels(memory.strengths),
     growthAreas: withoutRemovedLabels(memory.growthAreas),
@@ -314,14 +370,17 @@ function addStats(first: StudentMemoryStats, second: StudentMemoryStats): Studen
   const totalAttempts = first.totalAttempts + second.totalAttempts
   const correctAttempts = first.correctAttempts + second.correctAttempts
   const incorrectAttempts = first.incorrectAttempts + second.incorrectAttempts
-  const gradedAttempts = correctAttempts + incorrectAttempts
+  const weightedScore = (first.weightedScore ?? 0) + (second.weightedScore ?? 0)
+  const questionCount = (first.questionCount ?? 0) + (second.questionCount ?? 0)
 
   return {
     totalAttempts,
     correctAttempts,
     incorrectAttempts,
     hintsRequested: first.hintsRequested + second.hintsRequested,
-    accuracy: gradedAttempts > 0 ? Math.round((correctAttempts / gradedAttempts) * 100) : null,
+    accuracy: questionCount > 0 ? Math.round((weightedScore / questionCount) * 100) : null,
+    weightedScore,
+    questionCount,
   }
 }
 
@@ -339,21 +398,17 @@ function getCorrectFlag(value: Record<string, unknown>): boolean | null {
   return null
 }
 
-function hasStoredAnswer(value: Record<string, unknown>): boolean {
-  const answerKeys = ['answerInput', 'selectedAnswer', 'answer', 'practiceAnswer']
-  return answerKeys.some((key) => {
-    const entry = value[key]
-    return (
-      (typeof entry === 'string' && entry.trim().length > 0) ||
-      (typeof entry === 'number' && Number.isFinite(entry)) ||
-      typeof entry === 'boolean'
-    )
-  })
-}
-
 function getAnswerMapAttemptStats(value: unknown): StudentMemoryStats {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return { totalAttempts: 0, correctAttempts: 0, incorrectAttempts: 0, hintsRequested: 0, accuracy: null }
+    return {
+      totalAttempts: 0,
+      correctAttempts: 0,
+      incorrectAttempts: 0,
+      hintsRequested: 0,
+      accuracy: null,
+      weightedScore: 0,
+      questionCount: 0,
+    }
   }
 
   const emptyStats: StudentMemoryStats = {
@@ -362,6 +417,8 @@ function getAnswerMapAttemptStats(value: unknown): StudentMemoryStats {
     incorrectAttempts: 0,
     hintsRequested: 0,
     accuracy: null,
+    weightedScore: 0,
+    questionCount: 0,
   }
 
   return Object.values(value as Record<string, unknown>).reduce<StudentMemoryStats>((totals, entry) => {
@@ -372,6 +429,8 @@ function getAnswerMapAttemptStats(value: unknown): StudentMemoryStats {
         incorrectAttempts: 0,
         hintsRequested: 0,
         accuracy: 100,
+        weightedScore: 1,
+        questionCount: 1,
       })
     }
     if (entry === 'wrong' || entry === 'different') {
@@ -381,6 +440,8 @@ function getAnswerMapAttemptStats(value: unknown): StudentMemoryStats {
         incorrectAttempts: 1,
         hintsRequested: 0,
         accuracy: 0,
+        weightedScore: 0,
+        questionCount: 1,
       })
     }
     return totals
@@ -389,13 +450,29 @@ function getAnswerMapAttemptStats(value: unknown): StudentMemoryStats {
 
 function getProgressAttemptStats(value: unknown): StudentMemoryStats {
   if (!value || typeof value !== 'object') {
-    return { totalAttempts: 0, correctAttempts: 0, incorrectAttempts: 0, hintsRequested: 0, accuracy: null }
+    return {
+      totalAttempts: 0,
+      correctAttempts: 0,
+      incorrectAttempts: 0,
+      hintsRequested: 0,
+      accuracy: null,
+      weightedScore: 0,
+      questionCount: 0,
+    }
   }
 
   if (Array.isArray(value)) {
     return value.reduce(
       (totals, entry) => addStats(totals, getProgressAttemptStats(entry)),
-      { totalAttempts: 0, correctAttempts: 0, incorrectAttempts: 0, hintsRequested: 0, accuracy: null },
+      {
+        totalAttempts: 0,
+        correctAttempts: 0,
+        incorrectAttempts: 0,
+        hintsRequested: 0,
+        accuracy: null,
+        weightedScore: 0,
+        questionCount: 0,
+      },
     )
   }
 
@@ -404,23 +481,39 @@ function getProgressAttemptStats(value: unknown): StudentMemoryStats {
   const wrongAttempts = getWrongAttemptCount(record)
   const correctFlag = getCorrectFlag(record)
   const answerMapStats = getAnswerMapAttemptStats(record.answers)
-  const ownAttempts = attemptedAnswers?.length ?? (correctFlag !== null || hasStoredAnswer(record) ? 1 : 0)
-  const ownIncorrect = Math.min(wrongAttempts || (correctFlag === false ? ownAttempts : 0), ownAttempts)
-  const ownCorrect = correctFlag === true
-    ? Math.max(1, ownAttempts - ownIncorrect)
-    : Math.max(0, ownAttempts - ownIncorrect)
+  const fallbackAttempts =
+    correctFlag === true
+      ? wrongAttempts + 1
+      : correctFlag === false
+        ? Math.max(wrongAttempts, 1)
+        : wrongAttempts
+  const ownAttempts = Math.max(attemptedAnswers?.length ?? 0, fallbackAttempts)
+  const ownCorrect = correctFlag === true ? 1 : 0
+  const ownIncorrect = Math.max(0, ownAttempts - ownCorrect)
+  const ownQuestionCount = ownAttempts > 0 ? 1 : 0
+  const ownWeightedScore = correctFlag === true ? 0.5 ** Math.max(ownAttempts - 1, 0) : 0
   const ownStats = addStats(answerMapStats, {
     totalAttempts: ownAttempts,
     correctAttempts: ownCorrect,
     incorrectAttempts: ownIncorrect,
     hintsRequested: 0,
-    accuracy: ownAttempts > 0 ? Math.round((ownCorrect / Math.max(ownCorrect + ownIncorrect, 1)) * 100) : null,
+    accuracy: ownQuestionCount > 0 ? Math.round((ownWeightedScore / ownQuestionCount) * 100) : null,
+    weightedScore: ownWeightedScore,
+    questionCount: ownQuestionCount,
   })
 
   return Object.entries(record).reduce((totals, [key, entry]) => {
     if (key === 'attemptedAnswers' || key === 'answers') return totals
     return addStats(totals, getProgressAttemptStats(entry))
   }, ownStats)
+}
+
+export function getSingleLessonProgressStats(lesson: LessonProgress): StudentMemoryStats {
+  return getProgressAttemptStats({
+    screen1: lesson.screen1,
+    screen3: lesson.screen3,
+    sectionState: lesson.sectionState,
+  })
 }
 
 export function getLessonProgressStats(lessons: Record<string, LessonProgress>): StudentMemoryStats {
@@ -430,19 +523,17 @@ export function getLessonProgressStats(lessons: Record<string, LessonProgress>):
     incorrectAttempts: 0,
     hintsRequested: 0,
     accuracy: null,
+    weightedScore: 0,
+    questionCount: 0,
   }
 
   return Object.values(lessons).reduce((totals, lesson) => (
-    addStats(totals, getProgressAttemptStats({
-      screen1: lesson.screen1,
-      screen3: lesson.screen3,
-      sectionState: lesson.sectionState,
-    }))
+    addStats(totals, getSingleLessonProgressStats(lesson))
   ), emptyStats)
 }
 
 export function getStudentMemoryStats(memory: StudentMemory): StudentMemoryStats {
-  const conceptStats = summarizeConceptCounters(memory.concepts)
+  const conceptStats = summarizeConceptCounters(memory.concepts, memory)
   const recentHintRequests = memory.recentEvents.filter((event) => event.type === 'hintRequested').length
 
   const resolvedTotalAttempts =
@@ -459,16 +550,23 @@ export function getStudentMemoryStats(memory: StudentMemory): StudentMemoryStats
       : memory.incorrectAttempts
   const resolvedHints =
     Math.max(conceptStats.hintsRequested, memory.hintsRequested, recentHintRequests)
-  const gradedAttempts = resolvedCorrectAttempts + resolvedIncorrectAttempts
+  const resolvedWeightedScore = conceptStats.questionCount > 0
+    ? conceptStats.weightedScore
+    : resolvedCorrectAttempts
+  const resolvedQuestionCount = conceptStats.questionCount > 0
+    ? conceptStats.questionCount
+    : resolvedTotalAttempts
 
   return {
     totalAttempts: resolvedTotalAttempts,
     correctAttempts: resolvedCorrectAttempts,
     incorrectAttempts: resolvedIncorrectAttempts,
     hintsRequested: resolvedHints,
-    accuracy: gradedAttempts > 0
-      ? Math.round((resolvedCorrectAttempts / gradedAttempts) * 100)
+    accuracy: resolvedQuestionCount > 0
+      ? Math.round((resolvedWeightedScore / resolvedQuestionCount) * 100)
       : null,
+    weightedScore: resolvedWeightedScore,
+    questionCount: resolvedQuestionCount,
   }
 }
 

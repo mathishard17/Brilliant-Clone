@@ -26,7 +26,6 @@ coverage
 .cursor/
 agent-transcripts/
 mcps/
-functions/
 
 # Keep project-authored agent skills, but ignore installed vendor skill packs.
 .agents/skills/firebase-*

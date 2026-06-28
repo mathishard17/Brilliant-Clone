@@ -32,6 +32,19 @@ function HintButtonContent({
     if (buttonDisabled) return
     setLoading(true)
     try {
+      if (!profile.aiEnabled) {
+        setHint(request.fallbackHint)
+        setSource('fallback')
+        setDebugError(null)
+        void recordStudentMemoryEvent({
+          type: 'hintRequested',
+          lessonId: request.lessonId,
+          conceptKey: request.conceptKey,
+          label: request.conceptLabel,
+          learnerAnswer: request.learnerAnswer,
+        }).catch(() => undefined)
+        return
+      }
       const result = await generateSafeHint({
         ...request,
         studentMemory: summarizeStudentMemoryForHint(profile.studentMemory, request.conceptKey),
@@ -54,15 +67,20 @@ function HintButtonContent({
   return (
     <div className="hint-button">
       <LessonButton
-        label={loading ? 'AI coach is thinking...' : hint ? 'Coach hint shown' : 'Ask AI Coach'}
+        label={loading ? 'Coach is thinking...' : hint ? 'Coach hint shown' : profile.aiEnabled ? 'Ask AI Coach' : 'Show hint'}
         onClick={() => void handleClick()}
         variant="secondary"
         disabled={buttonDisabled}
       />
+      {!hint && !disabled && (
+        <p className="hint-button__endurance-tip">
+          Endurance tip: asking for help when you are truly stuck can still build Endurance.
+        </p>
+      )}
       {hint && (
         <div className="hint-button__message" role="status" aria-live="polite">
           <span className="hint-button__eyebrow">
-            {source === 'generated' ? 'AI Hint Coach' : 'Coach fallback'}
+            {source === 'generated' ? 'AI Hint Coach' : profile.aiEnabled ? 'Coach fallback' : 'Hint'}
           </span>
           <p>{renderLessonText(hint)}</p>
           {import.meta.env.DEV && debugError && (

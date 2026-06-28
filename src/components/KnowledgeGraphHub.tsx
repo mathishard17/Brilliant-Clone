@@ -12,13 +12,18 @@ import {
   KNOWLEDGE_NODES,
   KNOWLEDGE_SCHEMAS,
   canEnterKnowledgeNode,
-  getKnowledgeNodeById,
   getKnowledgeSchemaById,
   type KnowledgeNode,
   type KnowledgeNodeId,
   type KnowledgeSchemaId,
   type NodeMasteryState,
 } from '../types/knowledgeGraph'
+import {
+  AI_NODE_FEEDBACK_CACHE_PREFIX,
+  createStableHash,
+  readAiCache,
+  writeAiCache,
+} from '../utils/aiProgressCache'
 
 export interface KnowledgeGraphLesson {
   lessonId: string
@@ -27,6 +32,7 @@ export interface KnowledgeGraphLesson {
   emoji: string
   available: boolean
   state: NodeMasteryState
+  accuracy: number | null
 }
 
 interface KnowledgeGraphHubProps {
@@ -34,6 +40,10 @@ interface KnowledgeGraphHubProps {
   onEnterLesson: (lessonId: string) => void
   onResetLesson: (lessonId: string) => void
   activeThemeLabel?: string
+  aiEnabled: boolean
+  cacheScope: string
+  selectedNodeId?: KnowledgeNodeId
+  onSelectNode?: (nodeId: KnowledgeNodeId) => void
 }
 
 const MAP_HINT_STORAGE_KEY = 'schema-board-map-hint-dismissed'
@@ -100,7 +110,6 @@ type NodeSummaryStatus = 'loading' | 'ready' | 'error'
 interface NodeSummaryEntry {
   status: NodeSummaryStatus
   summary?: KnowledgeNodeSummary
-  source?: 'generated' | 'fallback'
   message?: string
 }
 
@@ -226,7 +235,6 @@ function createNodeSummaryCacheKey(request: GenerateKnowledgeNodeSummaryRequest)
     Math.round(request.progressRatio * 100),
     request.contextsTried.join(','),
     request.lessonTitle,
-    request.activeThemeLabel ?? '',
   ].join('|')
 }
 
@@ -243,6 +251,10 @@ export function KnowledgeGraphHub({
   onEnterLesson,
   onResetLesson,
   activeThemeLabel,
+  aiEnabled,
+  cacheScope,
+  selectedNodeId: controlledSelectedNodeId,
+  onSelectNode,
 }: KnowledgeGraphHubProps) {
   const [userSelectedNodeId, setUserSelectedNodeId] = useState<KnowledgeNodeId | undefined>()
   const [graphView, setGraphView] = useState(DEFAULT_GRAPH_VIEW)
@@ -268,7 +280,7 @@ export function KnowledgeGraphHub({
     return new Map<KnowledgeNodeId, KnowledgeNode>(entries)
   }, [])
   const focusNodeId = useMemo(() => getFocusNodeId(lessons), [lessons])
-  const selectedNodeId = userSelectedNodeId ?? focusNodeId
+  const selectedNodeId = controlledSelectedNodeId ?? userSelectedNodeId ?? focusNodeId
   const aiSummaryExpanded = aiSummaryExpandedNodeId === selectedNodeId
   const selectedLesson = selectedNodeId ? lessonByNodeId.get(selectedNodeId) : undefined
   const selectedNode = selectedNodeId ? nodeById.get(selectedNodeId) : undefined
@@ -308,12 +320,6 @@ export function KnowledgeGraphHub({
     })
     return new Map(entries)
   }, [graphView])
-  const graphViewStyle = {
-    '--graph-rotate-x': `${graphView.rotateX}deg`,
-    '--graph-rotate-y': `${graphView.rotateY}deg`,
-    '--graph-rotate-z': `${graphView.rotateZ}deg`,
-    '--graph-zoom': graphView.zoom,
-  } as CSSProperties
   const selectedSummaryRequest = useMemo(() =>
     selectedLesson && selectedNode && selectedSchema
       ? {
@@ -334,7 +340,7 @@ export function KnowledgeGraphHub({
       : undefined,
   [activeThemeLabel, selectedLesson, selectedNode, selectedSchema])
   const selectedSummaryKey = selectedSummaryRequest
-    ? createNodeSummaryCacheKey(selectedSummaryRequest)
+    ? `${aiEnabled ? 'ai' : 'local'}|${createNodeSummaryCacheKey(selectedSummaryRequest)}`
     : undefined
   const selectedSummaryEntry = selectedSummaryKey ? nodeSummaryByKey[selectedSummaryKey] : undefined
 
@@ -342,6 +348,34 @@ export function KnowledgeGraphHub({
     request: GenerateKnowledgeNodeSummaryRequest,
     summaryKey: string,
   ) => {
+    if (!aiEnabled) {
+      const fallbackEntry: NodeSummaryEntry = {
+        status: 'ready',
+        summary: buildFallbackKnowledgeNodeSummary(request),
+        message: 'AI is off, so this uses local progress instead.',
+      }
+      setNodeSummaryByKey((entries) => ({
+        ...entries,
+        [summaryKey]: fallbackEntry,
+      }))
+      return
+    }
+
+    const cacheKey = [
+      AI_NODE_FEEDBACK_CACHE_PREFIX,
+      cacheScope,
+      request.node.id,
+      createStableHash(summaryKey),
+    ].join(':')
+    const cachedSummary = readAiCache<NodeSummaryEntry>(cacheKey)
+    if (cachedSummary?.summary) {
+      setNodeSummaryByKey((entries) => ({
+        ...entries,
+        [summaryKey]: cachedSummary,
+      }))
+      return
+    }
+
     setNodeSummaryByKey((entries) => {
       if (entries[summaryKey]?.status === 'loading') return entries
 
@@ -357,37 +391,42 @@ export function KnowledgeGraphHub({
 
     try {
       const result = await generateKnowledgeNodeSummary(request)
+      const nextEntry: NodeSummaryEntry = {
+        status: 'ready',
+        summary: result.summary,
+        message:
+          result.source === 'fallback'
+            ? 'Feedback unavailable right now, so this uses local progress instead.'
+            : undefined,
+      }
+      writeAiCache(cacheKey, nextEntry)
       setNodeSummaryByKey((entries) => ({
         ...entries,
-        [summaryKey]: {
-          status: 'ready',
-          summary: result.summary,
-          source: result.source,
-          message:
-            result.source === 'fallback'
-              ? 'Feedback unavailable right now, so this uses local progress instead.'
-              : undefined,
-        },
+        [summaryKey]: nextEntry,
       }))
     } catch {
+      const fallbackEntry: NodeSummaryEntry = {
+        status: 'error',
+        summary: buildFallbackKnowledgeNodeSummary(request),
+        message: 'Feedback unavailable right now, so this uses local progress instead.',
+      }
+      writeAiCache(cacheKey, fallbackEntry)
       setNodeSummaryByKey((entries) => ({
         ...entries,
-        [summaryKey]: {
-          status: 'error',
-          summary: buildFallbackKnowledgeNodeSummary(request),
-          source: 'fallback',
-          message: 'Feedback unavailable right now, so this uses local progress instead.',
-        },
+        [summaryKey]: fallbackEntry,
       }))
     }
-  }, [])
+  }, [aiEnabled, cacheScope])
 
   useEffect(() => {
     if (!aiSummaryExpanded || !selectedSummaryRequest || !selectedSummaryKey || selectedSummaryEntry) {
       return
     }
 
-    void generateNodeSummary(selectedSummaryRequest, selectedSummaryKey)
+    const feedbackTimer = window.setTimeout(() => {
+      void generateNodeSummary(selectedSummaryRequest, selectedSummaryKey)
+    }, 0)
+    return () => window.clearTimeout(feedbackTimer)
   }, [aiSummaryExpanded, generateNodeSummary, selectedSummaryEntry, selectedSummaryKey, selectedSummaryRequest])
 
   function dismissMapHint() {
@@ -470,7 +509,6 @@ export function KnowledgeGraphHub({
 
       <div
         className={`knowledge-graph__map${draggingGraph ? ' knowledge-graph__map--dragging' : ''}`}
-        style={graphViewStyle}
         onPointerDown={handleGraphPointerDown}
         onPointerMove={handleGraphPointerMove}
         onPointerUp={stopGraphDrag}
@@ -516,11 +554,11 @@ export function KnowledgeGraphHub({
               )
             })}
             {KNOWLEDGE_EDGES.map((edge) => {
-              const from = nodeById.get(edge.from) ?? getKnowledgeNodeById(edge.from)
-              const to = nodeById.get(edge.to) ?? getKnowledgeNodeById(edge.to)
+              const from = nodeById.get(edge.from)
+              const to = nodeById.get(edge.to)
               const fromState = lessonByNodeId.get(edge.from)?.state
               const toState = lessonByNodeId.get(edge.to)?.state
-              if (!fromState || !toState) return null
+              if (!from || !to || !fromState || !toState) return null
               return (
                 <KnowledgeEdgePath
                   key={edge.id}
@@ -571,9 +609,10 @@ export function KnowledgeGraphHub({
                 isRecommended={focusNodeId === node.id && selectedNodeId !== node.id}
                 projectedPosition={projectedNodes.get(node.id)}
                 onSelect={() => {
-                  setUserSelectedNodeId(node.id)
-                }}
-                onPreview={() => {
+                  if (onSelectNode) {
+                    onSelectNode(node.id)
+                    return
+                  }
                   setUserSelectedNodeId(node.id)
                 }}
               />
@@ -584,7 +623,7 @@ export function KnowledgeGraphHub({
 
       {selectedLesson && selectedNode && (
         <div
-          className={`knowledge-graph__detail knowledge-graph__detail--compact knowledge-graph__detail--${selectedLesson.state.status}`}
+          className="knowledge-graph__detail knowledge-graph__detail--compact"
           style={{ '--node-neon': getKnowledgeSchemaById(selectedNode.schemaId).neonColor } as CSSProperties}
         >
           <div className="knowledge-graph__detail-main">
@@ -605,6 +644,11 @@ export function KnowledgeGraphHub({
                 <p className="knowledge-graph__detail-status">{LOCKED_NODE_DETAIL_COPY}</p>
               ) : (
                 <p className="knowledge-graph__detail-desc">{selectedNode.description}</p>
+              )}
+              {selectedLesson.accuracy !== null && (
+                <p className="knowledge-graph__detail-accuracy">
+                  Accuracy: <strong>{selectedLesson.accuracy}%</strong>
+                </p>
               )}
             </div>
           </div>

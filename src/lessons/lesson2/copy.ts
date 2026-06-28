@@ -2,13 +2,11 @@ import type {
   ChallengeMiniLessonPage,
   ClickthroughMiniLesson,
   ExplanationMiniLessonPage,
-  InteractiveVisualizationKind,
 } from '../../types/lesson'
 import type { Lesson1ThemePack } from '../../themes/themeTypes'
 
 export interface Lesson2ThemeText {
   themeName: string
-  learnerRole: string
   collectionLabel: string
   itemNoun: string
   itemNounPlural: string
@@ -26,7 +24,6 @@ export function createLesson2ThemeText(theme: Lesson1ThemePack): Lesson2ThemeTex
 
   return {
     themeName: theme.themeName,
-    learnerRole: theme.learnerRole,
     collectionLabel: collection.label,
     itemNoun: 'token',
     itemNounPlural: 'tokens',
@@ -38,11 +35,16 @@ export function createLesson2ThemeText(theme: Lesson1ThemePack): Lesson2ThemeTex
   }
 }
 
+type Lesson2VisualizationKind =
+  | 'marble-permutations'
+  | 'restricted-jewel-permutations'
+  | 'identical-jewel-permutations'
+
 interface Lesson2VisualizationSection {
   id: string
   heading: string
   body: (princessName: string) => string
-  visualization: InteractiveVisualizationKind
+  visualization: Lesson2VisualizationKind
   nextLabel: string
 }
 
@@ -119,31 +121,31 @@ export function lesson2Clickthrough(
       {
         id: 'lesson-2-clickthrough-page-6',
         type: 'challenge',
-        prompt: 'Concept check: what is **5!**?',
-        answer: 120,
-        body: `Try a bigger ${theme.themeName} display. **5!** means the number of ways to arrange 5 different ${theme.itemNounPlural}.`,
+        prompt: 'Concept check: what is **4!**?',
+        answer: 24,
+        body: `Try one step bigger than the display we practiced. **4!** means the number of ways to arrange 4 different ${theme.itemNounPlural}.`,
         feedback: {
-          correct: 'Exactly! **5! = 5 × 4 × 3 × 2 × 1 = 120**.',
-          incorrect: 'Not quite. Start at 5 and multiply one step at a time as the choices shrink.',
+          correct: 'Exactly! **4! = 4 × 3 × 2 × 1 = 24**.',
+          incorrect: 'Not quite. Start at 4 and multiply one step at a time as the choices shrink.',
           tryAgain: 'Try again!',
           solution:
-            'Solution: **5! = 5 × 4 × 3 × 2 × 1**. **5 × 4 = 20**, then **20 × 3 = 60**, then **60 × 2 = 120**.',
+            'Solution: **4! = 4 × 3 × 2 × 1**. **4 × 3 = 12**, then **12 × 2 = 24**.',
         },
         nextLabel: 'Continue',
       },
       {
         id: 'lesson-2-clickthrough-page-7',
         type: 'challenge',
-        prompt: `${theme.themeName} shortcut: if **5! = 120**, what is **7!**?`,
-        answer: 5040,
+        prompt: `${theme.themeName} shortcut: if **4! = 24**, what is **5!**?`,
+        answer: 120,
         body:
-          'You do not have to start from scratch. Connect the known **5!** value to the two new larger choice steps.',
+          'You do not have to start from scratch. Connect the known **4!** value to the one new larger choice step.',
         feedback: {
-          correct: 'Beautiful! **7! = 7 × 6 × 120 = 5,040**.',
-          incorrect: 'Not quite. Use the known **5!** value, then account for the two new larger choice steps.',
+          correct: 'Beautiful! **5! = 5 × 24 = 120**.',
+          incorrect: 'Not quite. Use the known **4!** value, then account for the one new larger choice step.',
           tryAgain: 'It’s okay, try again!',
           solution:
-            'Solution: **7! = 7 × 6 × 5! = 7 × 6 × 120**. **7 × 6 = 42**, and **42 × 120 = 5,040**.',
+            'Solution: **5! = 5 × 4! = 5 × 24 = 120**.',
         },
         nextLabel: 'Continue',
       },

@@ -1,4 +1,4 @@
-import { getOpenAiApiKey, requirePost, requestOpenAiJson } from './_openai.js'
+import { requirePost } from './_openai.js'
 import {
   createVoiceCacheKey,
   getFirebaseStorageBucket,
@@ -17,23 +17,6 @@ const NUMBER_WORD_PATTERN =
   /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|forty)\b/i
 const DIGIT_OR_EQUATION_PATTERN = /[\d=×*/+]/
 const EARLY_REVEAL_PATTERN = /\b(answer|solution|equals|out of|total is|there are)\b/i
-const FEEDBACK_VARIATION_STYLES = [
-  'Start by naming the strategy the learner used.',
-  'Start with a playful image from the theme.',
-  'Start by noticing the learner checked carefully.',
-  'Start with a short coach-style celebration that is not generic.',
-  'Start by connecting the success to the next step.',
-]
-const BANNED_FEEDBACK_OPENERS = [
-  'great job',
-  'great work',
-  'nice work',
-  'awesome job',
-  'good job',
-  'well done',
-  'hmm',
-  'try again',
-]
 
 function createVoiceScriptHash(text) {
   let hash = 5381
@@ -177,79 +160,24 @@ function isFeedbackClip(clip) {
   return typeof clip?.clipKey === 'string' && /\.feedback\.(correct|tryAgain)$/.test(clip.clipKey)
 }
 
-function isGeneratedVoiceScript(value) {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      typeof value.text === 'string' &&
-      value.text.trim().length > 0 &&
-      value.text.trim().length <= MAX_VOICE_SCRIPT_LENGTH,
-  )
-}
-
-function getVariationStyle(nonce) {
-  const characters = typeof nonce === 'string' ? nonce : ''
-  const total = Array.from(characters).reduce((sum, character) => sum + character.charCodeAt(0), 0)
-  return FEEDBACK_VARIATION_STYLES[total % FEEDBACK_VARIATION_STYLES.length]
-}
-
-function hasBannedFeedbackOpener(text) {
-  const normalized = text.trim().toLowerCase().replace(/^[^\w]+/, '')
-  return BANNED_FEEDBACK_OPENERS.some((opener) => normalized.startsWith(opener))
-}
-
-function removeBannedFeedbackOpener(text) {
-  if (!hasBannedFeedbackOpener(text)) return text
-  const trimmed = text.trim()
-  const withoutOpener = trimmed.replace(
-    /^(great job|great work|nice work|awesome job|good job|well done|hmm|try again)[,!.\s-]*(.*)$/i,
-    '$2',
-  ).trim()
-  return withoutOpener.length > 0 ? withoutOpener : trimmed
-}
-
-async function createAiFeedbackClip({ clip, feedbackContext, themePreference }) {
+function createFeedbackClipFromContext({ clip, feedbackContext }) {
   if (!isFeedbackClip(clip) || !feedbackContext) return clip
 
-  const openAiApiKey = getOpenAiApiKey()
-  if (!openAiApiKey) return clip
+  const text = feedbackContext.message.trim().slice(0, MAX_VOICE_SCRIPT_LENGTH)
+  if (!text) return clip
 
-  try {
-    const result = await requestOpenAiJson({
-      apiKey: openAiApiKey,
-      model: process.env.OPENAI_VOICE_MODEL || process.env.OPENAI_HINT_MODEL || 'gpt-4.1-mini',
-      system:
-        'You write one short spoken feedback line for a 3rd-grade math learner. Return valid JSON only. Keep it encouraging, natural, specific, and under 140 characters. Do not start with generic phrases like Great job, Great work, Nice work, Awesome job, Good job, Well done, Hmm, or Try again. For tryAgain, do not reveal answers, digits, equations, exact counts, or solution steps.',
-      user: JSON.stringify({
-        task: 'Return JSON with key text only.',
-        outcome: feedbackContext.outcome,
-        displayedFeedback: feedbackContext.message,
-        lessonId: clip.lessonId,
-        themePreference,
-        variationStyle: getVariationStyle(feedbackContext.nonce),
-        variationNonce: feedbackContext.nonce,
-      }),
-    })
-
-    if (!isGeneratedVoiceScript(result)) return clip
-
-    const text = removeBannedFeedbackOpener(result.text.trim())
-
-    const generatedClip = {
-      ...clip,
-      text,
-      caption: text,
-      scriptHash: createVoiceScriptHash(
-        `${clip.lessonId}:${clip.clipKey}:${clip.revealPolicy}:${feedbackContext.nonce}:${text}`,
-      ),
-    }
-
-    return validateGeneratedFeedbackClip(generatedClip, feedbackContext.outcome).length === 0
-      ? generatedClip
-      : clip
-  } catch {
-    return clip
+  const generatedClip = {
+    ...clip,
+    text,
+    caption: text,
+    scriptHash: createVoiceScriptHash(
+      `${clip.lessonId}:${clip.clipKey}:${clip.revealPolicy}:${feedbackContext.nonce}:${text}`,
+    ),
   }
+
+  return validateGeneratedFeedbackClip(generatedClip, feedbackContext.outcome).length === 0
+    ? generatedClip
+    : clip
 }
 
 function createAudioDataUrl(audio) {
@@ -337,10 +265,9 @@ export default async function handler(request, response) {
   }
 
   try {
-    const voiceClip = await createAiFeedbackClip({
+    const voiceClip = createFeedbackClipFromContext({
       clip: applyCacheBustToClip(clip, cacheBust),
       feedbackContext,
-      themePreference,
     })
     const shouldUseStorageCache = !isFeedbackClip(voiceClip)
     let bucket = shouldUseStorageCache && storageCache.enabled ? getFirebaseStorageBucket() : null

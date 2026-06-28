@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from 'react'
 import '../screens/screens.css'
 import { Closet, type ClosetCategory } from '../components/Closet'
 import { ChallengeQuestion } from '../components/ChallengeQuestion'
-import { DefaultInteractiveVisualization } from '../components/DefaultInteractiveVisualization'
 import { FeedbackBanner } from '../components/FeedbackBanner'
 import { HintButton } from '../components/HintButton'
 import { LessonText } from '../components/LessonText'
@@ -19,6 +18,7 @@ import { LESSON_1_ID } from '../types/lesson'
 import { useOutfitTracker } from '../hooks/useOutfitTracker'
 import type { OutfitPair } from '../types/lesson'
 import { getProfileLessonProgress } from '../utils/lessonProgress'
+import { canRevealSolution } from '../utils/solutionReveal'
 import {
   getLesson1ThemeCopy,
   getLesson1ThemeVisual,
@@ -70,9 +70,20 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
   const hasFoundAllOutfits = foundOutfitCount >= content.answer
   const isAnswerCorrect = submitted && screen1.answer === content.answer
   const isSolved = screen1.isCorrect === true || isAnswerCorrect
+  const canShowSolution = canRevealSolution({
+    memory: profile.studentMemory,
+    conceptKey: 'counting-choice-pairs',
+    wrongAttempts,
+  })
   const correctFeedbackMessage = hasFoundAllOutfits
     ? `${theme.feedback.correct} **6** is exactly right, ${princessName}! You also filled the closet log with all **${content.answer} ${lookName}**.`
     : `${theme.feedback.correct} **6** is exactly right, ${princessName}! The closet log can help you explore more ${lookName}, but you're ready to continue.`
+  const submittedAnswer = screen1.attemptedAnswers[screen1.attemptedAnswers.length - 1] ?? answerInput
+  const feedbackSubmissionKey = [
+    screen1.attemptedAnswers.join(','),
+    screen1.wrongAttempts,
+    String(screen1.isCorrect),
+  ].join('|')
 
   const handleNewOutfit = useCallback(
     (outfit: OutfitPair) => {
@@ -99,8 +110,7 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
     submitInFlightRef.current = true
     const normalizedAnswer = answerInput.trim()
     const answer = Number(answerInput)
-    const answerMatches = answer === content.answer
-    const isCorrect = answerMatches
+    const isCorrect = answer === content.answer
     const attemptedAnswers = screen1.attemptedAnswers.includes(normalizedAnswer)
       ? screen1.attemptedAnswers
       : [...screen1.attemptedAnswers, normalizedAnswer]
@@ -144,38 +154,35 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
       />
 
       <Lesson1CharacterSetup />
+      <p className="endurance-tip">
+        Endurance boost: try different closet combinations. New looks you discover can add Endurance points.
+      </p>
 
-      {content.visualization === 'outfit-pairs' ? (
-        <>
-          <div className="lesson-screen__play-area">
-            <Closet categories={closetCategories} selected={selected} onSelect={handleSelect} />
-            <PrincessCanvas
-              crownId={crownId}
-              dressId={dressId}
-              variant={visual.character}
-              characterConfig={visual.characterConfig}
-              itemStyles={itemMotifs}
-              appearance={profile.appearance}
-            />
-          </div>
+      <div className="lesson-screen__play-area">
+        <Closet categories={closetCategories} selected={selected} onSelect={handleSelect} />
+        <PrincessCanvas
+          crownId={crownId}
+          dressId={dressId}
+          variant={visual.character}
+          characterConfig={visual.characterConfig}
+          itemStyles={itemMotifs}
+          appearance={profile.appearance}
+        />
+      </div>
 
-          <OutfitLog
-            outfits={screen1.discoveredOutfits}
-            total={screen1.discoveredOutfits.length}
-            mode="pair"
-            onReset={() => void handleReset()}
-            heading={copy.logHeading}
-            emptyMessage={copy.logEmpty}
-            counterLabel={copy.logCounter}
-            itemLabels={itemLabels}
-            itemMotifs={itemMotifs}
-            motifColor={motif.primary}
-            motifShape={motif.shape}
-          />
-        </>
-      ) : (
-        <DefaultInteractiveVisualization />
-      )}
+      <OutfitLog
+        outfits={screen1.discoveredOutfits}
+        total={screen1.discoveredOutfits.length}
+        mode="pair"
+        onReset={() => void handleReset()}
+        heading={copy.logHeading}
+        emptyMessage={copy.logEmpty}
+        counterLabel={copy.logCounter}
+        itemLabels={itemLabels}
+        itemMotifs={itemMotifs}
+        motifColor={motif.primary}
+        motifShape={motif.shape}
+      />
 
       <ChallengeQuestion
         prompt={challengePrompt}
@@ -204,6 +211,17 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
       {submitted && (
         <FeedbackBanner
           variant={isSolved ? 'success' : 'error'}
+          submissionKey={feedbackSubmissionKey}
+          aiFeedback={{
+            lessonId: LESSON_1_ID,
+            conceptKey: 'counting-choice-pairs',
+            conceptLabel: 'Counting choice pairs',
+            problem: challengePrompt,
+            learnerAnswer: submittedAnswer,
+            correctAnswer: String(content.answer),
+            attemptedAnswers: screen1.attemptedAnswers,
+            context: `The learner is counting possible ${lookName} from one choice in ${crownsLabel} and one choice in ${dressesLabel}.`,
+          }}
           voiceCue={{
             correctClipKey: 'lesson1.feedback.correct',
             enabled: profile.voiceEnabled,
@@ -219,10 +237,11 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
                 ? detailedIncorrectMessage
                 : `${theme.feedback.tryAgain} ${princessName}!`
           }
+          solution={isSolved ? solutionMessage : undefined}
         />
       )}
 
-      {submitted && !isSolved && screen1.isCorrect === false && wrongAttempts >= 3 && (
+      {submitted && !isSolved && screen1.isCorrect === false && canShowSolution && (
         <FeedbackBanner
           variant="info"
           message={`Solution reveal: ${theme.feedback.hint}\n\n${solutionMessage}`}
