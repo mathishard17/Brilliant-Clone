@@ -235,6 +235,8 @@ function createNodeSummaryCacheKey(request: GenerateKnowledgeNodeSummaryRequest)
     Math.round(request.progressRatio * 100),
     request.contextsTried.join(','),
     request.lessonTitle,
+    request.activeThemeLabel,
+    request.schemaLabel,
   ].join('|')
 }
 
@@ -399,7 +401,9 @@ export function KnowledgeGraphHub({
             ? 'Feedback unavailable right now, so this uses local progress instead.'
             : undefined,
       }
-      writeAiCache(cacheKey, nextEntry)
+      if (result.source === 'generated') {
+        writeAiCache(cacheKey, nextEntry)
+      }
       setNodeSummaryByKey((entries) => ({
         ...entries,
         [summaryKey]: nextEntry,
@@ -410,7 +414,6 @@ export function KnowledgeGraphHub({
         summary: buildFallbackKnowledgeNodeSummary(request),
         message: 'Feedback unavailable right now, so this uses local progress instead.',
       }
-      writeAiCache(cacheKey, fallbackEntry)
       setNodeSummaryByKey((entries) => ({
         ...entries,
         [summaryKey]: fallbackEntry,
@@ -456,11 +459,11 @@ export function KnowledgeGraphHub({
     if (!dragStart || dragStart.pointerId !== event.pointerId) return
     const deltaX = event.clientX - dragStart.x
     const deltaY = event.clientY - dragStart.y
-    setGraphView({
-      ...graphView,
+    setGraphView((view) => ({
+      ...view,
       rotateX: clamp(dragStart.rotateX - deltaY * DRAG_ROTATION_SPEED, 0, 64),
       rotateY: clamp(dragStart.rotateY + deltaX * DRAG_ROTATION_SPEED, -42, 42),
-    })
+    }))
   }
 
   function zoomGraph(nextZoom: number) {
@@ -473,7 +476,10 @@ export function KnowledgeGraphHub({
   function handleGraphWheel(event: WheelEvent<HTMLDivElement>) {
     event.preventDefault()
     if (showMapHint) dismissMapHint()
-    zoomGraph(graphView.zoom - event.deltaY * WHEEL_ZOOM_SPEED)
+    setGraphView((view) => ({
+      ...view,
+      zoom: clamp(view.zoom - event.deltaY * WHEEL_ZOOM_SPEED, 0.68, 1.7),
+    }))
   }
 
   function stopGraphDrag(event: PointerEvent<HTMLDivElement>) {

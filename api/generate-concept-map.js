@@ -65,6 +65,14 @@ function normalizeRelationship(rawRelationship) {
   return { from, to, type, reason }
 }
 
+function normalizeStringList(value, maxItems, maxLength) {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((entry) => safeString(entry, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems)
+}
+
 function normalizeConceptMap(value, fallbackAudience) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return { conceptMap: null, issue: 'OpenAI response was not an object.' }
@@ -117,6 +125,7 @@ function normalizeConceptMap(value, fallbackAudience) {
       topic,
       bigIdea,
       audience,
+      assumedPrerequisites: normalizeStringList(value.assumedPrerequisites, 5, 120),
       concepts: uniqueConcepts,
       relationships,
       generationNotes: safeString(value.generationNotes, 240) || undefined,
@@ -152,10 +161,10 @@ export default async function handler(request, response) {
         'You design curriculum concept maps for a Brilliant-style 3rd-grade learning app. Return valid JSON only. Generate only a schema outline: node topics, learning goals, kid-friendly descriptions, and relationship reasoning. Do not write lesson material, code, quizzes, or long explanations.',
       user: JSON.stringify({
         task:
-          'Return JSON with keys topic, bigIdea, audience, concepts, relationships, and generationNotes. Create 4-10 concepts. Each concept needs id, label, shortLabel, topic, learningGoal, kidDescription, and difficulty from 1 to 5. Each relationship needs from, to, type, and reason. Relationship type must be prerequisite, related, deepening, or transfer. Include at least one starter/root concept with no prerequisite incoming edge.',
+          'Return JSON with keys topic, bigIdea, audience, assumedPrerequisites, concepts, relationships, and generationNotes. Create 4-10 concepts. Each concept needs id, label, shortLabel, topic, learningGoal, kidDescription, and difficulty from 1 to 5. Each relationship needs from, to, type, and reason. Relationship type must be prerequisite, related, deepening, or transfer. If the audience or goal says the learner already knows background material, list that prior knowledge in assumedPrerequisites and do not force the schema to start from complete nothingness. Include at least one starter/root concept with no prerequisite incoming edge inside the new schema.',
         topic,
         audience,
-        goal,
+        goalOrLearnerBackgroundNotes: goal,
       }),
     })
 

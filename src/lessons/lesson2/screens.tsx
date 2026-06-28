@@ -6,7 +6,7 @@ import { FeedbackBanner } from '../../components/FeedbackBanner'
 import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
-import { RetrievalPracticeSet } from '../../components/RetrievalPracticeSet'
+import { RetrievalPracticeSet, type RetrievalPracticeState } from '../../components/RetrievalPracticeSet'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import {
@@ -52,6 +52,7 @@ interface MiniLessonProgressState extends Record<string, unknown> {
   pageIndex: number
   challengeStates: Record<string, ChallengeUiState>
   retrievalPracticeSolved: boolean
+  retrievalPracticeState?: RetrievalPracticeState
 }
 
 function createChallengeUiState(): ChallengeUiState {
@@ -69,6 +70,7 @@ function createMiniLessonProgressState(): MiniLessonProgressState {
     pageIndex: 0,
     challengeStates: {},
     retrievalPracticeSolved: false,
+    retrievalPracticeState: undefined,
   }
 }
 
@@ -115,7 +117,7 @@ const IDENTICAL_FIRST_TOKENS = [
 
 const LESSON_2_RETRIEVAL_PRACTICE_PROBLEMS = [
   {
-    id: 'lesson-1-counting-choices',
+    id: 'lesson-2-counting-choices',
     prompt: 'Remember choices: a badge maker has **4 shapes** and **3 colors**. How many different badges can they make?',
     answer: 12,
     correctFeedback: 'Yes: 4 shapes times 3 colors makes **12** badges.',
@@ -669,7 +671,7 @@ function Lesson2VisualizationSection({
       <LessonText text={section.body(princessName)} />
       {currentScreen === 1 && (
         <p className="endurance-tip">
-          Endurance boost: try different display orders before answering. New orders you find can add Endurance points.
+          Explore tip: try different display orders before answering.
         </p>
       )}
       {introVoiceClipKey && (
@@ -988,6 +990,8 @@ export function Lesson2FinalClickthrough() {
             return (
               <RetrievalPracticeSet
                 initiallySolved={miniLessonState.retrievalPracticeSolved === true}
+                initialState={miniLessonState.retrievalPracticeState}
+                onStateChange={(retrievalPracticeState) => setMiniLessonState({ retrievalPracticeState })}
                 onSolvedChange={(solved) => {
                   if (solved && miniLessonState.retrievalPracticeSolved !== true) {
                     setMiniLessonState({ retrievalPracticeSolved: true })

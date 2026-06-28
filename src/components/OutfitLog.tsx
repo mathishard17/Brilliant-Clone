@@ -16,6 +16,7 @@ interface OutfitLogProps {
   heading?: string
   emptyMessage?: string
   counterLabel?: string
+  revealCounterTotal?: boolean
   itemLabels?: Record<string, string>
   itemMotifs?: Record<string, ClosetItemStyle | undefined>
   motifColor?: string
@@ -30,6 +31,7 @@ export const OutfitLog = memo(function OutfitLog({
   heading = 'Unique Princess Looks Found:',
   emptyMessage = 'Try tapping items in the closet!',
   counterLabel = 'Total Unique Found',
+  revealCounterTotal = true,
   itemLabels,
   itemMotifs,
   motifColor,
@@ -71,7 +73,7 @@ export const OutfitLog = memo(function OutfitLog({
         </ul>
       )}
       <p className="outfit-log__counter">
-        {counterLabel}: <strong>{total}</strong>
+        {counterLabel}: <strong>{revealCounterTotal ? total : 'Keep exploring'}</strong>
       </p>
     </div>
   )

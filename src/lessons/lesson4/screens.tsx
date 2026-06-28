@@ -5,7 +5,7 @@ import { FeedbackBanner } from '../../components/FeedbackBanner'
 import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
-import { RetrievalPracticeSet } from '../../components/RetrievalPracticeSet'
+import { RetrievalPracticeSet, type RetrievalPracticeState } from '../../components/RetrievalPracticeSet'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import { useLesson } from '../../hooks/useLesson'
@@ -92,6 +92,7 @@ interface Lesson4ChoiceState {
 
 interface Lesson4FinaleState extends Record<string, unknown> {
   retrievalPracticeSolved: boolean
+  retrievalPracticeState?: RetrievalPracticeState
   showPracticePage: boolean
 }
 
@@ -866,6 +867,8 @@ export function Lesson4Finale() {
           <LessonText text="Solve both practice problems to unlock the finish button." />
           <RetrievalPracticeSet
             initiallySolved={retrievalPracticeSolved}
+            initialState={finaleState.retrievalPracticeState}
+            onStateChange={(retrievalPracticeState) => setFinaleState({ retrievalPracticeState })}
             onSolvedChange={(solved) => {
               if (solved && !retrievalPracticeSolved) {
                 setFinaleState({ retrievalPracticeSolved: true })

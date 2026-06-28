@@ -189,7 +189,7 @@ export const screen1Visual: SpinnerVisual = {
   title: 'Chance Spinner',
   targetPrize: 'crown',
   helperText:
-    'Tap spaces to inspect them, or press Spin once to see one outcome. Careful spinner exploring can add Endurance points.',
+    'Tap spaces to inspect them, or press Spin once to see one outcome before answering.',
   spaces: [
     { id: 'crown-1', prize: 'crown' },
     { id: 'ruby-1', prize: 'ruby' },
@@ -276,7 +276,7 @@ export const compareSpinnerVisual: SpinnerVisual = {
   id: 'more-likely-less-likely',
   title: 'Star and Dragon Spinner',
   targetPrize: 'star',
-  helperText: 'Tap Star, Crown, or Dragon spaces to compare winning spaces. Careful comparing can add Endurance points.',
+  helperText: 'Tap Star, Crown, or Dragon spaces to compare winning spaces before answering.',
   spaces: [
     { id: 'star-1', prize: 'star' },
     { id: 'star-2', prize: 'star' },

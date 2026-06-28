@@ -23,6 +23,13 @@ function isDifficulty(value: unknown): value is GeneratedConcept['difficulty'] {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5
 }
 
+function isOptionalStringList(value: unknown, maxLength: number) {
+  return value === undefined || (
+    Array.isArray(value) &&
+    value.every((entry) => typeof entry === 'string' && entry.trim().length > 0 && entry.trim().length <= maxLength)
+  )
+}
+
 function isGeneratedConcept(value: unknown): value is GeneratedConcept {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const concept = value as Partial<GeneratedConcept>
@@ -50,13 +57,14 @@ function isGeneratedRelationship(value: unknown): value is GeneratedConceptRelat
   )
 }
 
-export function isGeneratedConceptMap(value: unknown): value is GeneratedConceptMap {
+function isGeneratedConceptMap(value: unknown): value is GeneratedConceptMap {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const conceptMap = value as Partial<GeneratedConceptMap>
   if (
     !isNonEmptyString(conceptMap.topic, 80) ||
     !isNonEmptyString(conceptMap.bigIdea, 220) ||
     !isNonEmptyString(conceptMap.audience, 60) ||
+    !isOptionalStringList(conceptMap.assumedPrerequisites, 120) ||
     !Array.isArray(conceptMap.concepts) ||
     conceptMap.concepts.length < 4 ||
     conceptMap.concepts.length > 10 ||

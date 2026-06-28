@@ -11,8 +11,18 @@ export interface RetrievalPracticeProblem {
   tryAgainFeedback: string
 }
 
+export interface RetrievalPracticeState {
+  answers?: Record<string, string>
+  attemptedAnswers?: Record<string, string[]>
+  submitted?: Record<string, boolean>
+  solvedProblems?: Record<string, boolean>
+  currentProblemIndex?: number
+}
+
 interface RetrievalPracticeSetProps {
   initiallySolved?: boolean
+  initialState?: RetrievalPracticeState
+  onStateChange?: (state: RetrievalPracticeState) => void
   onSolvedChange?: (solved: boolean) => void
   problems: RetrievalPracticeProblem[]
   subtitle?: string
@@ -33,15 +43,18 @@ function normalizeNumericAnswer(value: string): string {
 
 export function RetrievalPracticeSet({
   initiallySolved = false,
+  initialState,
+  onStateChange,
   onSolvedChange,
   problems,
   subtitle,
 }: RetrievalPracticeSetProps) {
-  const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [attemptedAnswers, setAttemptedAnswers] = useState<Record<string, string[]>>({})
+  const [answers, setAnswers] = useState<Record<string, string>>(initialState?.answers ?? {})
+  const [attemptedAnswers, setAttemptedAnswers] = useState<Record<string, string[]>>(initialState?.attemptedAnswers ?? {})
   const [repeatAnswer, setRepeatAnswer] = useState<string | null>(null)
-  const [submitted, setSubmitted] = useState<Record<string, boolean>>({})
+  const [submitted, setSubmitted] = useState<Record<string, boolean>>(initialState?.submitted ?? {})
   const [solvedProblems, setSolvedProblems] = useState<Record<string, boolean>>(() => {
+    if (initialState?.solvedProblems) return initialState.solvedProblems
     if (!initiallySolved) return {}
     return problems.reduce<Record<string, boolean>>((solved, problem) => {
       solved[problem.id] = true
@@ -49,7 +62,7 @@ export function RetrievalPracticeSet({
     }, {})
   })
   const [currentProblemIndex, setCurrentProblemIndex] = useState(() =>
-    initiallySolved ? Math.max(problems.length - 1, 0) : 0,
+    initialState?.currentProblemIndex ?? (initiallySolved ? Math.max(problems.length - 1, 0) : 0),
   )
   if (problems.length === 0) return null
 
@@ -67,16 +80,26 @@ export function RetrievalPracticeSet({
       return
     }
 
-    setAttemptedAnswers((current) => ({
-      ...current,
+    const nextAttemptedAnswers = {
+      ...attemptedAnswers,
       [problem.id]: [...problemAttempts, normalizedAnswer],
-    }))
+    }
+    const nextSubmitted = { ...submitted, [problem.id]: true }
+    setAttemptedAnswers(nextAttemptedAnswers)
     setRepeatAnswer(null)
-    setSubmitted((current) => ({ ...current, [problem.id]: true }))
-    if (normalizeAnswer(answers[problem.id] ?? '') !== problem.answer) return
+    setSubmitted(nextSubmitted)
+    if (normalizeAnswer(answers[problem.id] ?? '') !== problem.answer) {
+      persist({ attemptedAnswers: nextAttemptedAnswers, submitted: nextSubmitted })
+      return
+    }
 
     const nextSolvedProblems = { ...solvedProblems, [problem.id]: true }
     setSolvedProblems(nextSolvedProblems)
+    persist({
+      attemptedAnswers: nextAttemptedAnswers,
+      submitted: nextSubmitted,
+      solvedProblems: nextSolvedProblems,
+    })
     if (problems.every((practiceProblem) => nextSolvedProblems[practiceProblem.id])) {
       onSolvedChange?.(true)
     }
@@ -84,7 +107,9 @@ export function RetrievalPracticeSet({
 
   function handleNextProblem() {
     setRepeatAnswer(null)
-    setCurrentProblemIndex((index) => Math.min(index + 1, problems.length - 1))
+    const nextProblemIndex = Math.min(currentProblemIndex + 1, problems.length - 1)
+    setCurrentProblemIndex(nextProblemIndex)
+    persist({ currentProblemIndex: nextProblemIndex })
   }
 
   const value = answers[currentProblem.id] ?? ''
@@ -103,6 +128,17 @@ export function RetrievalPracticeSet({
       ? ' retrieval-practice__card--correct'
       : ' retrieval-practice__card--incorrect'
     : ''
+
+  function persist(nextState: RetrievalPracticeState) {
+    onStateChange?.({
+      answers,
+      attemptedAnswers,
+      submitted,
+      solvedProblems,
+      currentProblemIndex,
+      ...nextState,
+    })
+  }
 
   return (
     <section className="retrieval-practice" aria-label="Practice">
@@ -129,10 +165,12 @@ export function RetrievalPracticeSet({
               min={0}
               onChange={(event) => {
                 setRepeatAnswer(null)
-                setAnswers((current) => ({
-                  ...current,
+                const nextAnswers = {
+                  ...answers,
                   [currentProblem.id]: event.target.value,
-                }))
+                }
+                setAnswers(nextAnswers)
+                persist({ answers: nextAnswers })
               }}
               type="number"
               value={value}

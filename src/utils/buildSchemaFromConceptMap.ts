@@ -86,6 +86,53 @@ function getWarnings(nodes: GeneratedSchemaNode[], edges: GeneratedSchemaEdge[])
   return warnings
 }
 
+function limitStarterNodes(nodes: GeneratedSchemaNode[]) {
+  const starterNodes = nodes.filter((node) => node.isStarter)
+  if (starterNodes.length <= 2) {
+    return {
+      nodes,
+      starterEdges: [] as GeneratedSchemaEdge[],
+    }
+  }
+
+  const keptStarters = starterNodes.slice(0, 2)
+  const extraStarters = starterNodes.slice(2)
+  const extraStarterIds = new Set(extraStarters.map((node) => node.id))
+
+  const normalizedNodes = nodes.map((node, index) => {
+    if (!extraStarterIds.has(node.id)) return node
+
+    const prerequisite = keptStarters[index % keptStarters.length] ?? keptStarters[0]
+    if (!prerequisite || prerequisite.id === node.id) return node
+
+    return {
+      ...node,
+      isStarter: false,
+      unlockedBy: [prerequisite.id],
+    }
+  })
+
+  const starterEdges = extraStarters
+    .map<GeneratedSchemaEdge | null>((node, index) => {
+      const prerequisite = keptStarters[index % keptStarters.length] ?? keptStarters[0]
+      if (!prerequisite || prerequisite.id === node.id) return null
+
+      return {
+        id: `${node.schemaId}_starter_link_${index + 1}`,
+        from: prerequisite.id,
+        to: node.id,
+        relationship: 'prerequisite',
+        reason: `${node.label} opens after ${prerequisite.label} so the schema starts with only two entry points.`,
+      }
+    })
+    .filter((edge): edge is GeneratedSchemaEdge => edge !== null)
+
+  return {
+    nodes: normalizedNodes,
+    starterEdges,
+  }
+}
+
 export function buildSchemaFromConceptMap(conceptMap: GeneratedConceptMap): GeneratedSchemaDraft {
   const schemaId = `generated_${slugify(conceptMap.topic, 'schema')}`
   const prerequisiteTargets = new Set(
@@ -95,7 +142,7 @@ export function buildSchemaFromConceptMap(conceptMap: GeneratedConceptMap): Gene
   )
   const nodeBySourceId = new Map(conceptMap.concepts.map((concept) => [concept.id, concept]))
 
-  const nodes = conceptMap.concepts.map<GeneratedSchemaNode>((concept, index) => {
+  const rawNodes = conceptMap.concepts.map<GeneratedSchemaNode>((concept, index) => {
     const unlockedBy = conceptMap.relationships
       .filter((relationship) => relationship.type === 'prerequisite' && relationship.to === concept.id)
       .map((relationship) => relationship.from)
@@ -123,6 +170,8 @@ export function buildSchemaFromConceptMap(conceptMap: GeneratedConceptMap): Gene
     ]),
   )
 
+  const { nodes, starterEdges } = limitStarterNodes(rawNodes)
+
   const edges = conceptMap.relationships
     .map<GeneratedSchemaEdge | null>((relationship, index) => {
       const from = nodeIdByConceptId.get(relationship.from)
@@ -138,6 +187,7 @@ export function buildSchemaFromConceptMap(conceptMap: GeneratedConceptMap): Gene
       }
     })
     .filter((edge): edge is GeneratedSchemaEdge => edge !== null)
+    .concat(starterEdges)
 
   return {
     id: `${schemaId}_${Math.abs(hashString(JSON.stringify(conceptMap))).toString(36)}`,

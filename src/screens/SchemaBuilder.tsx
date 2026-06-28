@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from 'react'
 import { generateConceptMap } from '../services/conceptMapGeneration'
 import { generateNodeMaterial } from '../services/nodeMaterialGeneration'
 import type {
@@ -28,8 +28,77 @@ interface MaterialEntry {
   source: 'generated' | 'fallback'
 }
 
+const GENERATED_SCHEMA_GREEN = '#4ade80'
+const DEFAULT_GENERATED_GRAPH_VIEW = {
+  rotateX: 18,
+  rotateY: 0,
+  rotateZ: -2,
+  zoom: 1,
+}
+const GENERATED_DRAG_ROTATION_SPEED = 0.18
+const GENERATED_WHEEL_ZOOM_SPEED = 0.0015
+const GENERATED_CAMERA_DISTANCE = 180
+
+interface ProjectedGeneratedPoint {
+  x: number
+  y: number
+  z: number
+  scale: number
+}
+
 function getDebugMessage(debugError?: string) {
   return import.meta.env.DEV && debugError ? ` Debug: ${debugError}` : ''
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function degreesToRadians(value: number) {
+  return (value * Math.PI) / 180
+}
+
+function getGeneratedNodeDepth(node: GeneratedSchemaNode) {
+  return (node.difficulty - 3) * 10 + Math.sin(node.mapPosition.x * 0.21 + node.mapPosition.y * 0.13) * 18
+}
+
+function projectGeneratedPoint({
+  x,
+  y,
+  z,
+  view,
+}: {
+  x: number
+  y: number
+  z: number
+  view: typeof DEFAULT_GENERATED_GRAPH_VIEW
+}): ProjectedGeneratedPoint {
+  const centeredX = x - 50
+  const centeredY = y - 50
+  const rotateX = degreesToRadians(view.rotateX)
+  const rotateY = degreesToRadians(view.rotateY)
+  const rotateZ = degreesToRadians(view.rotateZ)
+
+  const yRotX = centeredX * Math.cos(rotateY) + z * Math.sin(rotateY)
+  const yRotZ = -centeredX * Math.sin(rotateY) + z * Math.cos(rotateY)
+  const xRotY = centeredY * Math.cos(rotateX) - yRotZ * Math.sin(rotateX)
+  const xRotZ = centeredY * Math.sin(rotateX) + yRotZ * Math.cos(rotateX)
+  const zRotX = yRotX * Math.cos(rotateZ) - xRotY * Math.sin(rotateZ)
+  const zRotY = yRotX * Math.sin(rotateZ) + xRotY * Math.cos(rotateZ)
+  const perspectiveScale = GENERATED_CAMERA_DISTANCE / (GENERATED_CAMERA_DISTANCE - xRotZ)
+  const scale = clamp(view.zoom * perspectiveScale, 0.48, 2.3)
+
+  return {
+    x: 50 + zRotX * scale,
+    y: 50 + zRotY * scale,
+    z: xRotZ,
+    scale,
+  }
+}
+
+function calculateGeneratedFrameVisibility(x: number, y: number) {
+  const overflow = Math.max(0, -x, x - 100, -y, y - 100)
+  return Math.max(0.16, 1 - overflow / 24)
 }
 
 function getDisplayText(value: string) {
@@ -38,6 +107,12 @@ function getDisplayText(value: string) {
   const lastToken = normalized.split(' ').at(-1) ?? ''
   const hasDanglingLetter = /^[A-Za-z]$/.test(lastToken) && !/[.!?)]$/.test(normalized)
   return hasDanglingLetter ? normalized.slice(0, -lastToken.length).trim() : normalized
+}
+
+function getTitleText(value: string) {
+  return getDisplayText(value)
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
 }
 
 function getStudentMemorySummary(memory: StudentMemory) {
@@ -107,6 +182,16 @@ export function SchemaBuilder({
   const [loadingMap, setLoadingMap] = useState(false)
   const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [sidebarMode, setSidebarMode] = useState<'generator' | 'nodes'>('generator')
+  const [graphView, setGraphView] = useState(DEFAULT_GENERATED_GRAPH_VIEW)
+  const [draggingGraph, setDraggingGraph] = useState(false)
+  const dragStartRef = useRef<{
+    pointerId: number
+    x: number
+    y: number
+    rotateX: number
+    rotateY: number
+  } | null>(null)
 
   const selectedNode = useMemo(
     () => draft?.nodes.find((node) => node.id === selectedNodeId) ?? draft?.nodes[0] ?? null,
@@ -127,6 +212,68 @@ export function SchemaBuilder({
     if (!draft || !selectedNode) return []
     return draft.edges.filter((edge) => edge.from === selectedNode.id || edge.to === selectedNode.id)
   }, [draft, selectedNode])
+  const projectedGeneratedNodes = useMemo(() => {
+    if (!draft) return new Map<string, ProjectedGeneratedPoint>()
+    const entries = draft.nodes.map((node) => [
+      node.id,
+      projectGeneratedPoint({
+        x: node.mapPosition.x,
+        y: node.mapPosition.y,
+        z: getGeneratedNodeDepth(node),
+        view: graphView,
+      }),
+    ] as const)
+    return new Map(entries)
+  }, [draft, graphView])
+
+  function handleGraphPointerDown(event: PointerEvent<HTMLDivElement>) {
+    const target = event.target
+    if (target instanceof Element && target.closest('button')) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      rotateX: graphView.rotateX,
+      rotateY: graphView.rotateY,
+    }
+    setDraggingGraph(true)
+  }
+
+  function handleGraphPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const dragStart = dragStartRef.current
+    if (!dragStart || dragStart.pointerId !== event.pointerId) return
+    const deltaX = event.clientX - dragStart.x
+    const deltaY = event.clientY - dragStart.y
+    setGraphView((view) => ({
+      ...view,
+      rotateX: clamp(dragStart.rotateX - deltaY * GENERATED_DRAG_ROTATION_SPEED, 0, 64),
+      rotateY: clamp(dragStart.rotateY + deltaX * GENERATED_DRAG_ROTATION_SPEED, -48, 48),
+    }))
+  }
+
+  function stopGraphDrag(event: PointerEvent<HTMLDivElement>) {
+    const dragStart = dragStartRef.current
+    if (dragStart?.pointerId === event.pointerId) {
+      dragStartRef.current = null
+      setDraggingGraph(false)
+    }
+  }
+
+  function zoomGeneratedGraph(nextZoom: number) {
+    setGraphView((view) => ({
+      ...view,
+      zoom: clamp(nextZoom, 0.68, 1.7),
+    }))
+  }
+
+  function handleGraphWheel(event: WheelEvent<HTMLDivElement>) {
+    event.preventDefault()
+    setGraphView((view) => ({
+      ...view,
+      zoom: clamp(view.zoom - event.deltaY * GENERATED_WHEEL_ZOOM_SPEED, 0.68, 1.7),
+    }))
+  }
 
   async function handleGenerateConceptMap() {
     if (!aiEnabled) {
@@ -159,6 +306,8 @@ export function SchemaBuilder({
       setDraft(nextDraft)
       setSelectedNodeId(nextDraft.nodes[0]?.id ?? null)
       setMaterialByNodeId({})
+      setSidebarMode('nodes')
+      setGraphView(DEFAULT_GENERATED_GRAPH_VIEW)
       setStatusMessage(
         result.source === 'generated'
           ? 'Schema outline generated. Choose a node, then generate material when you are ready.'
@@ -228,6 +377,8 @@ export function SchemaBuilder({
     setDraft(null)
     setSelectedNodeId(null)
     setMaterialByNodeId({})
+    setSidebarMode('generator')
+    setGraphView(DEFAULT_GENERATED_GRAPH_VIEW)
     setStatusMessage(null)
   }
 
@@ -238,8 +389,8 @@ export function SchemaBuilder({
           <p className="home-hub__manage-eyebrow">Schema lab</p>
           <h2>Make a New Schema</h2>
           <p>
-            Generate node topics and connection reasoning first. Node material is created later
-            when you open a draft node.
+            Create a custom schema map from any topic, then open each node to inspect what
+            it teaches and generate lesson material.
           </p>
         </div>
         <button type="button" className="home-hub__page-btn" onClick={onBack}>
@@ -247,106 +398,190 @@ export function SchemaBuilder({
         </button>
       </div>
 
-      <form
-        className="schema-builder__form schema-builder__form--horizontal"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void handleGenerateConceptMap()
-        }}
-      >
-        <div className="schema-builder__short-fields">
-          <label>
-            Topic
-            <input
-              className="form-input"
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder="e.g. fractions"
-              type="text"
-              value={topic}
+      {!draft || sidebarMode === 'generator' ? (
+        <form
+          className="schema-builder__form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleGenerateConceptMap()
+          }}
+        >
+          {draft && (
+            <button type="button" className="home-hub__page-btn" onClick={() => setSidebarMode('nodes')}>
+              Back to nodes
+            </button>
+          )}
+          <div className="schema-builder__short-fields">
+            <label>
+              Topic
+              <input
+                className="form-input"
+                onChange={(event) => setTopic(event.target.value)}
+                placeholder="e.g. fractions"
+                type="text"
+                value={topic}
+              />
+            </label>
+            <label>
+              Audience
+              <input
+                className="form-input"
+                onChange={(event) => setAudience(event.target.value)}
+                type="text"
+                value={audience}
+              />
+            </label>
+          </div>
+          <label className="schema-builder__goal-field">
+            Goal or notes
+            <textarea
+              className="form-input schema-builder__textarea"
+              onChange={(event) => setGoal(event.target.value)}
+              placeholder="Optional: what should this schema help the learner understand?"
+              value={goal}
             />
           </label>
-          <label>
-            Audience
-            <input
-              className="form-input"
-              onChange={(event) => setAudience(event.target.value)}
-              type="text"
-              value={audience}
-            />
-          </label>
-        </div>
-        <label className="schema-builder__goal-field">
-          Goal or notes
-          <textarea
-            className="form-input schema-builder__textarea"
-            onChange={(event) => setGoal(event.target.value)}
-            placeholder="Optional: what should this schema help the learner understand?"
-            value={goal}
-          />
-        </label>
-        <div className="schema-builder__actions schema-builder__actions--top">
-          <button type="submit" className="home-hub__page-btn" disabled={loadingMap || !aiEnabled}>
-            {!aiEnabled ? 'AI is off' : loadingMap ? 'Generating...' : draft ? 'Regenerate map' : 'Generate map'}
-          </button>
-          <button type="button" className="home-hub__reset-btn" onClick={handleClear} disabled={!draft && !statusMessage}>
-            Clear
-          </button>
-        </div>
-        {statusMessage && <p className="schema-builder__status schema-builder__status--top">{statusMessage}</p>}
-      </form>
+          <div className="schema-builder__actions schema-builder__actions--top">
+            <button type="submit" className="home-hub__page-btn" disabled={loadingMap || !aiEnabled}>
+              {!aiEnabled ? 'AI is off' : loadingMap ? 'Generating...' : draft ? 'Regenerate map' : 'Generate map'}
+            </button>
+            <button type="button" className="home-hub__reset-btn" onClick={handleClear} disabled={!draft && !statusMessage}>
+              Clear
+            </button>
+          </div>
+          {statusMessage && <p className="schema-builder__status">{statusMessage}</p>}
+        </form>
+      ) : (
+        <aside className="schema-builder__node-sidebar" aria-label="Generated schema nodes">
+          <div className="schema-builder__node-sidebar-head">
+            <button
+              type="button"
+              className="schema-builder__quiet-back"
+              onClick={() => setSidebarMode('generator')}
+            >
+              ← Back to generator
+            </button>
+            <div>
+              <p className="home-hub__manage-eyebrow">Generated nodes</p>
+              <h3>Choose a node</h3>
+            </div>
+          </div>
+          <div className="schema-builder__node-list">
+            {draft.nodes.map((node) => (
+              <button
+                type="button"
+                className={`schema-builder__node-card ${selectedNode?.id === node.id ? 'schema-builder__node-card--active' : ''}`}
+                key={node.id}
+                onClick={() => setSelectedNodeId(node.id)}
+              >
+                <span>{node.isStarter ? 'Starter' : `Difficulty ${node.difficulty}`}</span>
+                <strong>{node.label}</strong>
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
 
       <section className="schema-builder__preview" aria-label="Generated schema preview">
-          {!draft ? (
+          {!draft || sidebarMode === 'generator' ? (
             <div className="schema-builder__empty">
               <h3>Draft preview</h3>
-              <p>
-                Your generated concept map will show here as node cards, edge reasons,
-                warnings, and lazy node material.
-              </p>
+              <p>{draft ? 'Edit the generator inputs, then regenerate the map when you are ready.' : 'Your generated 3D schema graph, node list, edge reasons, warnings, and lazy node material will show here.'}</p>
             </div>
           ) : (
             <>
-              <div className="schema-builder__summary">
-                <span className="schema-builder__color-dot" style={{ background: draft.schema.neonColor }} />
-                <div>
-                  <h3>{draft.schema.label}</h3>
-                  <p>{getDisplayText(draft.schema.description)}</p>
-                  {draft.sourceConceptMap.generationNotes && (
-                    <p className="schema-builder__muted">{getDisplayText(draft.sourceConceptMap.generationNotes)}</p>
-                  )}
+              <section className="schema-builder__graph-panel" aria-label="Interactive 3D generated schema graph">
+                <div className="schema-builder__graph-header">
+                  <div>
+                    <p className="home-hub__manage-eyebrow">Generated graph</p>
+                    <h3>{getTitleText(draft.sourceConceptMap.topic)}</h3>
+                  </div>
+                  <p>Drag to rotate. Pick a node to inspect it.</p>
                 </div>
-              </div>
-
-              {draft.warnings.length > 0 && (
-                <div className="schema-builder__warnings" role="status">
-                  <strong>Draft warnings</strong>
-                  <ul>
-                    {draft.warnings.map((warning) => <li key={warning}>{warning}</li>)}
-                  </ul>
-                </div>
-              )}
-
-              <div className="schema-builder__workspace">
-                <div className="schema-builder__node-rail">
-                  <h3>Nodes</h3>
-                  <div className="schema-builder__node-list">
-                    {draft.nodes.map((node) => (
-                      <button
-                        type="button"
-                        className={`schema-builder__node-card ${selectedNode?.id === node.id ? 'schema-builder__node-card--active' : ''}`}
-                        key={node.id}
-                        onClick={() => setSelectedNodeId(node.id)}
-                      >
-                        <span>{node.isStarter ? 'Starter' : `Difficulty ${node.difficulty}`}</span>
-                        <strong>{node.label}</strong>
-                        <small>{node.skill}</small>
-                      </button>
-                    ))}
+                <div
+                  className={`schema-builder__graph-map${draggingGraph ? ' schema-builder__graph-map--dragging' : ''}`}
+                  onPointerDown={handleGraphPointerDown}
+                  onPointerMove={handleGraphPointerMove}
+                  onPointerUp={stopGraphDrag}
+                  onPointerCancel={stopGraphDrag}
+                  onWheel={handleGraphWheel}
+                  aria-label="Interactive generated schema graph. Drag empty space to rotate."
+                  style={{ '--generated-schema-green': GENERATED_SCHEMA_GREEN } as CSSProperties}
+                >
+                  <div className="schema-builder__graph-controls">
+                    <span>Drag graph - Scroll to zoom</span>
+                    <button type="button" onClick={() => zoomGeneratedGraph(graphView.zoom - 0.12)} aria-label="Zoom out generated graph">
+                      -
+                    </button>
+                    <button type="button" onClick={() => zoomGeneratedGraph(graphView.zoom + 0.12)} aria-label="Zoom in generated graph">
+                      +
+                    </button>
+                    <button type="button" onClick={() => setGraphView(DEFAULT_GENERATED_GRAPH_VIEW)}>
+                      Reset view
+                    </button>
+                  </div>
+                  <div className="schema-builder__graph-space">
+                    <svg className="schema-builder__graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                      {draft.edges.map((edge) => {
+                        const from = projectedGeneratedNodes.get(edge.from)
+                        const to = projectedGeneratedNodes.get(edge.to)
+                        if (!from || !to) return null
+                        const edgeVisibility = Math.min(
+                          calculateGeneratedFrameVisibility(from.x, from.y),
+                          calculateGeneratedFrameVisibility(to.x, to.y),
+                        )
+                        return (
+                          <line
+                            className={`schema-builder__graph-edge schema-builder__graph-edge--${edge.relationship}`}
+                            key={edge.id}
+                            style={{ '--generated-edge-visibility': edgeVisibility } as CSSProperties}
+                            x1={from.x}
+                            y1={from.y}
+                            x2={to.x}
+                            y2={to.y}
+                          />
+                        )
+                      })}
+                    </svg>
+                    {draft.nodes.map((node) => {
+                      const projectedNode = projectedGeneratedNodes.get(node.id)
+                      if (!projectedNode) return null
+                      const frameVisibility = calculateGeneratedFrameVisibility(projectedNode.x, projectedNode.y)
+                      const nodeScale = projectedNode.scale
+                      return (
+                        <button
+                          type="button"
+                          className={`schema-builder__graph-node ${node.isStarter ? 'schema-builder__graph-node--starter' : 'schema-builder__graph-node--locked'}${selectedNode?.id === node.id ? ' schema-builder__graph-node--selected' : ''}`}
+                          key={node.id}
+                          style={{
+                            '--generated-node-x': `${projectedNode.x}%`,
+                            '--generated-node-y': `${projectedNode.y}%`,
+                            '--generated-node-scale': nodeScale,
+                            '--generated-node-frame-visibility': frameVisibility,
+                            '--generated-node-tooltip-rest-scale': (1 / nodeScale) * 0.96,
+                            '--generated-node-tooltip-active-scale': 1 / nodeScale,
+                            '--generated-node-z-index': Math.round(40 + projectedNode.z),
+                          } as CSSProperties}
+                          onClick={() => setSelectedNodeId(node.id)}
+                          onFocus={() => setSelectedNodeId(node.id)}
+                          aria-pressed={selectedNode?.id === node.id}
+                          aria-label={`${node.label}. Difficulty ${node.difficulty}. ${node.skill}`}
+                        >
+                          <span className="schema-builder__graph-orb" aria-hidden="true" />
+                          <span className="schema-builder__graph-tooltip" aria-hidden="true">
+                            <strong>{node.label}</strong>
+                            <span>{node.isStarter ? 'Starter node' : `Difficulty ${node.difficulty}`}</span>
+                            <small>{node.skill}</small>
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
+              </section>
 
-                {selectedNode && (
-                  <div className="schema-builder__selected-stack">
+              {selectedNode && (
+                <div className="schema-builder__selected-stack">
                     <section className="schema-builder__selected-node" aria-label="Selected generated node">
                       <div className="schema-builder__selected-head">
                         <div>
@@ -416,8 +651,9 @@ export function SchemaBuilder({
                             type="button"
                             className="home-hub__page-btn"
                             onClick={() => void handleSelectNode(selectedNode)}
+                            disabled={!aiEnabled}
                           >
-                            Generate material
+                            {aiEnabled ? 'Generate material' : 'AI is off'}
                           </button>
                         )}
                       </div>
@@ -457,9 +693,31 @@ export function SchemaBuilder({
                         </p>
                       )}
                     </section>
+                </div>
+              )}
+
+              {draft.sourceConceptMap.assumedPrerequisites && draft.sourceConceptMap.assumedPrerequisites.length > 0 && (
+                <section className="schema-builder__assumptions" aria-label="Assumed prerequisites">
+                  <div>
+                    <p className="home-hub__manage-eyebrow">Assumed prerequisites</p>
+                    <h3>What this schema assumes the learner already knows</h3>
                   </div>
-                )}
-              </div>
+                  <div className="schema-builder__assumption-list">
+                    {draft.sourceConceptMap.assumedPrerequisites.map((prerequisite) => (
+                      <span key={prerequisite}>{getDisplayText(prerequisite)}</span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {draft.warnings.length > 0 && (
+                <div className="schema-builder__warnings" role="status">
+                  <strong>Draft warnings</strong>
+                  <ul>
+                    {draft.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                  </ul>
+                </div>
+              )}
 
               <section className="schema-builder__connection-strip" aria-label="Connections for selected node">
                 <h3>{selectedNode ? `${selectedNode.label} connections` : 'Connections'}</h3>

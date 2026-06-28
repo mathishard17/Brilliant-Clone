@@ -6,7 +6,7 @@ import { FeedbackBanner } from '../../components/FeedbackBanner'
 import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
-import { RetrievalPracticeSet } from '../../components/RetrievalPracticeSet'
+import { RetrievalPracticeSet, type RetrievalPracticeState } from '../../components/RetrievalPracticeSet'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import { useLesson } from '../../hooks/useLesson'
@@ -62,6 +62,7 @@ type Lesson5BuilderState = {
 type Lesson5PageState = {
   pageIndex: number
   retrievalPracticeSolved?: boolean
+  retrievalPracticeState?: RetrievalPracticeState
 }
 
 const OUTCOME_SYMBOLS: Record<Lesson5OutcomeKind, string> = {
@@ -603,9 +604,10 @@ function CarnivalSpinner({
 interface SampleSpaceTrayProps {
   spaces: readonly Lesson5SpinnerSpace[]
   selectedIndexes?: readonly number[]
+  revealTotal?: boolean
 }
 
-function SampleSpaceTray({ spaces, selectedIndexes }: SampleSpaceTrayProps) {
+function SampleSpaceTray({ spaces, selectedIndexes, revealTotal = true }: SampleSpaceTrayProps) {
   const themeBridge = useLesson5ThemeBridge()
   const { display } = themeBridge
   const visibleIndexes = selectedIndexes ?? []
@@ -636,7 +638,7 @@ function SampleSpaceTray({ spaces, selectedIndexes }: SampleSpaceTrayProps) {
         </ol>
       )}
       <p className="lesson-5-tray__total">
-        Total outcomes: <strong>{visibleIndexes.length}</strong>
+        Total outcomes: <strong>{revealTotal ? visibleIndexes.length : 'Check after answer'}</strong>
       </p>
     </div>
   )
@@ -659,6 +661,8 @@ function FairnessMeter({ spaces, opponent, showResult = true }: FairnessMeterPro
   const opponentKind: Lesson5OutcomeKind = opponent === 'dragon' ? 'dragon' : 'shield'
   const playerLabel = themeBridge.copy.heroPlayer
   const opponentLabel = display[opponentKind].label
+  const playerBarWidth = showResult ? `${(princessCount / total) * 100}%` : '50%'
+  const opponentBarWidth = showResult ? `${(opponentCount / total) * 100}%` : '50%'
 
   return (
     <div className="lesson-5-meter" aria-live="polite">
@@ -669,7 +673,7 @@ function FairnessMeter({ spaces, opponent, showResult = true }: FairnessMeterPro
           <div className="lesson-5-meter__bar" aria-hidden="true">
             <span
               style={{
-                width: `${(princessCount / total) * 100}%`,
+                width: playerBarWidth,
                 background: `linear-gradient(90deg, ${outcomeVisuals.crown.border}, ${outcomeVisuals.crown.background})`,
               }}
             />
@@ -681,7 +685,7 @@ function FairnessMeter({ spaces, opponent, showResult = true }: FairnessMeterPro
           <div className="lesson-5-meter__bar lesson-5-meter__bar--opponent" aria-hidden="true">
             <span
               style={{
-                width: `${(opponentCount / total) * 100}%`,
+                width: opponentBarWidth,
                 background: `linear-gradient(90deg, ${outcomeVisuals[opponentKind].border}, ${outcomeVisuals[opponentKind].background})`,
               }}
             />
@@ -1034,7 +1038,7 @@ export function Lesson5SampleSpaceIntro({ princessName }: Lesson5SectionProps) {
         label="Listen to sample space tip"
       />
       <p className="endurance-tip">
-        Endurance boost: tap spinner spaces to fill the sample-space tray. Careful exploring can add Endurance points.
+        Explore tip: tap spinner spaces to fill the sample-space tray before answering.
       </p>
 
       <div className="lesson-screen__play-area">
@@ -1046,7 +1050,11 @@ export function Lesson5SampleSpaceIntro({ princessName }: Lesson5SectionProps) {
           ariaLabel={themeLesson5Text('Four equal carnival spinner spaces', themeBridge)}
         />
         <div>
-          <SampleSpaceTray spaces={spinnerInspectorSpaces} selectedIndexes={selectedIndexes} />
+          <SampleSpaceTray
+            spaces={spinnerInspectorSpaces}
+            selectedIndexes={selectedIndexes}
+            revealTotal={challengeCorrect}
+          />
           <LessonButton
             label="Reset sample space"
             variant="secondary"
@@ -1328,6 +1336,8 @@ export function Lesson5RoyalReview({ princessName }: Lesson5SectionProps) {
             return (
               <RetrievalPracticeSet
                 initiallySolved={pageState.retrievalPracticeSolved === true}
+                initialState={pageState.retrievalPracticeState}
+                onStateChange={(retrievalPracticeState) => setPageState({ retrievalPracticeState })}
                 onSolvedChange={(solved) => {
                   if (solved && pageState.retrievalPracticeSolved !== true) {
                     setPageState({ retrievalPracticeSolved: true })

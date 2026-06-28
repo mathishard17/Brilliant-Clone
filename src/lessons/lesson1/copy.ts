@@ -139,7 +139,7 @@ export function screen4MiniLesson(princessName: string): ClickthroughMiniLesson<
         id: 'lesson-1-complete',
         type: 'explanation',
         body: `**Multiplying your options** is the ultimate mathematical superpower shortcut for **counting choices**. You've completed Lesson 1, ${princessName}!`,
-        nextLabel: 'Finish Lesson Complete! 🎉',
+        nextLabel: 'Continue to practice →',
       },
     ],
   }

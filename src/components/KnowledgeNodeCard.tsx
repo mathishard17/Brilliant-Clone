@@ -59,8 +59,6 @@ export function KnowledgeNodeCard({
       className={`knowledge-node knowledge-node--${state.status}${isSelected ? ' knowledge-node--selected' : ''}${isRecommended ? ' knowledge-node--recommended' : ''}`}
       style={cardStyle}
       onClick={onSelect}
-      onFocus={onSelect}
-      onMouseEnter={onSelect}
       aria-pressed={isSelected}
       aria-label={`${node.label}. ${statusLabel}. ${node.description}`}
     >

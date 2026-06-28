@@ -155,7 +155,7 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
 
       <Lesson1CharacterSetup />
       <p className="endurance-tip">
-        Endurance boost: try different closet combinations. New looks you discover can add Endurance points.
+        Explore tip: try a few closet combinations before answering.
       </p>
 
       <div className="lesson-screen__play-area">
@@ -178,6 +178,7 @@ export function DressingRoom({ princessName }: DressingRoomProps) {
         heading={copy.logHeading}
         emptyMessage={copy.logEmpty}
         counterLabel={copy.logCounter}
+        revealCounterTotal={isSolved}
         itemLabels={itemLabels}
         itemMotifs={itemMotifs}
         motifColor={motif.primary}

@@ -7,7 +7,7 @@ import { FeedbackBanner } from '../../components/FeedbackBanner'
 import { HintButton } from '../../components/HintButton'
 import { LessonButton } from '../../components/LessonButton'
 import { LessonText } from '../../components/LessonText'
-import { RetrievalPracticeSet } from '../../components/RetrievalPracticeSet'
+import { RetrievalPracticeSet, type RetrievalPracticeState } from '../../components/RetrievalPracticeSet'
 import { ScreenBackButton } from '../../components/ScreenBackButton'
 import { VoiceButton } from '../../components/VoiceButton'
 import { useLesson } from '../../hooks/useLesson'
@@ -70,6 +70,7 @@ interface Lesson3FinalSortState {
   [key: string]: unknown
   answers: Record<string, Lesson3SortAnswer>
   retrievalPracticeSolved?: boolean
+  retrievalPracticeState?: RetrievalPracticeState
   showPracticePage?: boolean
 }
 
@@ -661,7 +662,7 @@ function TreasureBagPicker({
   return (
     <div className="treasure-bag" aria-label={`${themeCopy.containerPlural} picker`}>
       <p className="endurance-tip">
-        Endurance boost: keep trying new two-item bags. Each new bag you discover can add Endurance points.
+        Explore tip: keep trying new two-item bags before answering.
       </p>
       <div className="treasure-bag__stage">
         <div className="treasure-bag__bag" aria-label={themeCopy.currentContainerAriaLabel}>
@@ -1173,6 +1174,8 @@ export function Lesson3FinalSort({ princessName }: Lesson3SectionProps) {
           <LessonText text="Solve both practice problems to unlock the finish button." />
           <RetrievalPracticeSet
             initiallySolved={retrievalPracticeSolved}
+            initialState={finalSortState.retrievalPracticeState}
+            onStateChange={(retrievalPracticeState) => setFinalSortState({ retrievalPracticeState })}
             onSolvedChange={(solved) => {
               if (solved && !retrievalPracticeSolved) {
                 setFinalSortState({ retrievalPracticeSolved: true })

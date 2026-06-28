@@ -23,6 +23,7 @@ export interface GeneratedConceptMap {
   topic: string
   bigIdea: string
   audience: string
+  assumedPrerequisites?: string[]
   concepts: GeneratedConcept[]
   relationships: GeneratedConceptRelationship[]
   generationNotes?: string
